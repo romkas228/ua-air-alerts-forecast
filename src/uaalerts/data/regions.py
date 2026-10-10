@@ -270,3 +270,76 @@ def covers_center(region: str, geo_level: str, location: str | None) -> bool:
     if geo_level == "oblast" or region == "kyiv_city":
         return True
     return location in CENTER_LOCATIONS[region]
+
+
+# Land borders between regions (Kyiv City is enclosed by Kyivska).
+_BORDERS: tuple[tuple[str, str], ...] = (
+    ("cherkaska", "kyivska"),
+    ("cherkaska", "poltavska"),
+    ("cherkaska", "kirovohradska"),
+    ("cherkaska", "vinnytska"),
+    ("chernihivska", "kyivska"),
+    ("chernihivska", "sumska"),
+    ("chernihivska", "poltavska"),
+    ("chernivetska", "ivano_frankivska"),
+    ("chernivetska", "ternopilska"),
+    ("chernivetska", "khmelnytska"),
+    ("chernivetska", "vinnytska"),
+    ("crimea", "khersonska"),
+    ("dnipropetrovska", "kharkivska"),
+    ("dnipropetrovska", "donetska"),
+    ("dnipropetrovska", "zaporizka"),
+    ("dnipropetrovska", "khersonska"),
+    ("dnipropetrovska", "mykolaivska"),
+    ("dnipropetrovska", "kirovohradska"),
+    ("dnipropetrovska", "poltavska"),
+    ("donetska", "luhanska"),
+    ("donetska", "kharkivska"),
+    ("donetska", "zaporizka"),
+    ("ivano_frankivska", "lvivska"),
+    ("ivano_frankivska", "zakarpatska"),
+    ("ivano_frankivska", "ternopilska"),
+    ("kharkivska", "sumska"),
+    ("kharkivska", "poltavska"),
+    ("kharkivska", "luhanska"),
+    ("khersonska", "mykolaivska"),
+    ("khersonska", "zaporizka"),
+    ("khmelnytska", "rivnenska"),
+    ("khmelnytska", "zhytomyrska"),
+    ("khmelnytska", "vinnytska"),
+    ("khmelnytska", "ternopilska"),
+    ("kirovohradska", "poltavska"),
+    ("kirovohradska", "mykolaivska"),
+    ("kirovohradska", "odeska"),
+    ("kirovohradska", "vinnytska"),
+    ("kyiv_city", "kyivska"),
+    ("kyivska", "zhytomyrska"),
+    ("kyivska", "poltavska"),
+    ("kyivska", "vinnytska"),
+    ("lvivska", "volynska"),
+    ("lvivska", "rivnenska"),
+    ("lvivska", "ternopilska"),
+    ("lvivska", "zakarpatska"),
+    ("mykolaivska", "odeska"),
+    ("odeska", "vinnytska"),
+    ("poltavska", "sumska"),
+    ("rivnenska", "volynska"),
+    ("rivnenska", "ternopilska"),
+    ("rivnenska", "zhytomyrska"),
+    ("vinnytska", "zhytomyrska"),
+    ("zaporizka", "khersonska"),
+)
+
+
+def _neighbours() -> dict[str, tuple[str, ...]]:
+    nb: dict[str, set[str]] = {r: set() for r in REGION_IDS}
+    for a, b in _BORDERS:
+        nb[a].add(b)
+        nb[b].add(a)
+    return {r: tuple(sorted(v)) for r, v in nb.items()}
+
+
+NEIGHBOURS: dict[str, tuple[str, ...]] = _neighbours()
+
+# Occupied regions: de-facto constant alert, never part of national aggregates.
+OCCUPIED: frozenset[str] = frozenset({"crimea", "luhanska"})

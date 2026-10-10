@@ -20,6 +20,9 @@ PANEL_COLUMNS = [
     "red_minutes",
     "y_oblast_any",
     "oblast_minutes",
+    "alert_active_end",
+    "red_active_end",
+    "oblast_active_end",
 ]
 
 
@@ -61,6 +64,24 @@ def _minutes_per_hour(intervals: pd.DataFrame, hours: pd.DatetimeIndex) -> np.nd
     return minutes
 
 
+def _active_at(intervals: pd.DataFrame, instants: pd.DatetimeIndex) -> np.ndarray:
+    """1 where an instant b lies in some disjoint interval with start < b <= end.
+
+    The closed right end makes the value at the data end consistent: an alert still
+    ongoing when the data stop is clipped to end there and counts as active.
+    """
+    if intervals.empty:
+        return np.zeros(len(instants), dtype="int8")
+    starts = intervals["start"].to_numpy()
+    ends = intervals["end"].to_numpy()
+    b = instants.to_numpy()
+    idx = np.searchsorted(starts, b, side="left") - 1
+    ok = idx >= 0
+    active = np.zeros(len(b), dtype=bool)
+    active[ok] = ends[idx[ok]] >= b[ok]
+    return active.astype("int8")
+
+
 def build_panel(
     events: pd.DataFrame,
     start: pd.Timestamp,
@@ -75,7 +96,7 @@ def build_panel(
       y_red / red_minutes      red-level alert covering the centre; <NA> before
                                `regime_break` (levels did not exist)
     Context (not targets): y_oblast_any / oblast_minutes  any air-raid alert anywhere in
-    the oblast.
+    the oblast. `*_active_end`: alert active at the instant the hour ends (hour + 1h).
     Ongoing alerts (finished_at NaT) are treated as active until `end`, which must be the
     time the source was last observed — never later.
     """
@@ -90,8 +111,14 @@ def build_panel(
         for r, g, loc in zip(air["region"], air["geo_level"], air["location"], strict=True)
     ]
 
-    def minutes(df: pd.DataFrame) -> np.ndarray:
-        return _minutes_per_hour(merge_intervals(df["started_at"], df["finished_at"]), hours)
+    hour_ends = hours + HOUR
+
+    def series(df: pd.DataFrame, prefix: str) -> dict[str, np.ndarray]:
+        blocks = merge_intervals(df["started_at"], df["finished_at"])
+        return {
+            f"{prefix}_minutes": _minutes_per_hour(blocks, hours),
+            f"{prefix}_active_end": _active_at(blocks, hour_ends),
+        }
 
     frames = []
     for region in regions:
@@ -102,9 +129,9 @@ def build_panel(
                 {
                     "region": region,
                     "hour": hours,
-                    "alert_minutes": minutes(c),
-                    "red_minutes": minutes(c[c["alert_level"] == "red"]),
-                    "oblast_minutes": minutes(g),
+                    **series(c, "alert"),
+                    **series(c[c["alert_level"] == "red"], "red"),
+                    **series(g, "oblast"),
                 }
             )
         )
@@ -115,5 +142,7 @@ def build_panel(
     panel["y_red"] = (panel["red_minutes"] > 0).astype("Int8")
     panel.loc[pre, "y_red"] = pd.NA
     panel.loc[pre, "red_minutes"] = np.nan
+    panel["red_active_end"] = panel["red_active_end"].astype("Int8")
+    panel.loc[pre, "red_active_end"] = pd.NA
     panel["region"] = panel["region"].astype("category")
     return panel[PANEL_COLUMNS]

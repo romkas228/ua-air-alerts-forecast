@@ -149,8 +149,8 @@ data/ (gitignored)     raw/ interim/ processed/
 |---|---|---|
 | M1 ✅ | Project scaffold (uv, ruff, pytest, CI) | `uv run pytest` is green in CI |
 | M2 ✅ | Fetch + normalize + source-agreement check | `events.parquet` + overlap report |
-| M3 | Hourly panel + targets + EDA notebook/report | plots of seasonality and the regime break |
-| M4 | `as_of`, features, splits + leakage tests | truncation-invariance tests pass |
+| M3 ✅ | Hourly panel + targets + EDA notebook/report | plots of seasonality and the regime break |
+| M4 ✅ | `as_of`, features, splits + leakage tests | truncation-invariance tests pass |
 | M5 | Baselines + evaluation harness | metrics table by lead bucket |
 | M6 | LightGBM + training-window experiments | beats climatology in walk-forward (or an honest report) |
 | M7 | Report + Streamlit dashboard + siren logger | map + 7-day forecast from "now" |

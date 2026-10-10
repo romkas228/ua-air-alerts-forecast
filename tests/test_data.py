@@ -152,3 +152,15 @@ def test_target_only_counts_alerts_covering_the_centre() -> None:
     assert d["y_oblast_any"].tolist() == [1, 1, 1, 0]
     assert d["y_alert"].tolist() == [0, 0, 1, 0]
     assert d["y_red"].tolist() == [0, 0, 1, 0]
+
+
+def test_active_at_hour_end(hist: pd.DataFrame) -> None:
+    p = build_panel(hist, ts("2026-09-06 10:00"), ts("2026-09-06 14:00"), BREAK)
+    kyiv = p[p["region"] == "kyiv_city"]
+    # Kyiv alert 10:30-12:15: active at 11:00 and 12:00, not at 13:00/14:00.
+    assert kyiv["alert_active_end"].tolist() == [1, 1, 0, 0]
+
+
+def test_ongoing_alert_is_active_at_data_end(fresh: pd.DataFrame) -> None:
+    p = build_panel(fresh, ts("2026-09-06 12:00"), ts("2026-09-06 14:00"), BREAK)
+    assert p.loc[p["region"] == "luhanska", "alert_active_end"].tolist() == [1, 1]
