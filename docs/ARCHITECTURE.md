@@ -133,7 +133,7 @@ src/uaalerts/
   features/build.py    origin features, dataset assembly
   models/baselines.py  persistence, climatology
   models/gbm.py        LightGBM + calibration
-  evaluation/splits.py chronological splits + embargo
+  evaluation/splits.py weekly walk-forward + purging
   evaluation/metrics.py
   report/              HTML/markdown report generation
   cli.py               Typer entrypoint `uaalerts`
@@ -152,6 +152,6 @@ data/ (gitignored)     raw/ interim/ processed/
 | M3 | Hourly panel + targets + EDA notebook/report | plots of seasonality and the regime break |
 | M4 | `as_of`, features, splits + leakage tests | truncation-invariance tests pass |
 | M5 | Baselines + evaluation harness | metrics table by lead bucket |
-| M6 | LightGBM + calibration | beats climatology on val/test (or an honest report) |
+| M6 | LightGBM + training-window experiments | beats climatology in walk-forward (or an honest report) |
 | M7 | Report + Streamlit dashboard + siren logger | map + 7-day forecast from "now" |
 | M8 | Text features (Telegram) | ablation: with vs. without text |
