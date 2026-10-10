@@ -44,3 +44,229 @@ REGIONS: tuple[Region, ...] = (
 REGION_IDS: tuple[str, ...] = tuple(r.id for r in REGIONS)
 BY_NAME_EN: dict[str, str] = {r.name_en: r.id for r in REGIONS}
 BY_NAME_UK: dict[str, str] = {r.name_uk: r.id for r in REGIONS}
+
+
+# Locations that cover each oblast's administrative centre, as named in either source
+# (raion and hromada/city level). An oblast-level alert always covers the centre.
+# Notes: Donetska -> Kramatorsk (de facto centre since 2014); Kyivska -> Bila Tserkva
+# (largest city; the formal centre Kyiv is its own region). Crimea/Luhanska: occupied,
+# oblast-level only (excluded from evaluation anyway). Kyiv City: every alert counts.
+CENTER_LOCATIONS: dict[str, frozenset[str]] = {
+    "cherkaska": frozenset(
+        {
+            "Cherkaskyi raion",
+            "Черкаський район",
+            "m. Cherkasy ta Cherkaska terytorialna hromada",
+            "Черкаська територіальна громада",
+            "м. Черкаси",
+        }
+    ),
+    "chernihivska": frozenset(
+        {
+            "Chernihivskyi raion",
+            "Чернігівський район",
+            "m. Chernihiv ta Chernihivska terytorialna hromada",
+            "Чернігівська територіальна громада",
+            "м. Чернігів",
+        }
+    ),
+    "chernivetska": frozenset(
+        {
+            "Chernivetskyi raion",
+            "Чернівецький район",
+            "m. Chernivtsi ta Chernivetska terytorialna hromada",
+            "Чернівецька територіальна громада",
+            "м. Чернівці",
+        }
+    ),
+    "dnipropetrovska": frozenset(
+        {
+            "Dniprovskyi raion",
+            "Дніпровський район",
+            "m. Dnipro ta Dniprovska terytorialna hromada",
+            "Дніпровська територіальна громада",
+            "м. Дніпро",
+        }
+    ),
+    "donetska": frozenset(
+        {
+            "Kramatorskyi raion",
+            "Краматорський район",
+            "m. Kramatorsk ta Kramatorska terytorialna hromada",
+            "Краматорська територіальна громада",
+            "м. Краматорськ",
+        }
+    ),
+    "ivano_frankivska": frozenset(
+        {
+            "Ivano-Frankivskyi raion",
+            "Івано-Франківський район",
+            "m. Ivano-Frankivsk ta Ivano-Frankivska terytorialna hromada",
+            "Івано-Франківська територіальна громада",
+            "м. Івано-Франківськ",
+        }
+    ),
+    "kharkivska": frozenset(
+        {
+            "Kharkivskyi raion",
+            "Харківський район",
+            "m. Kharkiv ta Kharkivska terytorialna hromada",
+            "Харківська територіальна громада",
+            "м. Харків",
+        }
+    ),
+    "khersonska": frozenset(
+        {
+            "Khersonskyi raion",
+            "Херсонський район",
+            "m. Kherson ta Khersonska terytorialna hromada",
+            "Херсонська територіальна громада",
+            "м. Херсон",
+        }
+    ),
+    "khmelnytska": frozenset(
+        {
+            "Khmelnytskyi raion",
+            "Хмельницький район",
+            "m. Khmelnytskyi ta Khmelnytska terytorialna hromada",
+            "Хмельницька територіальна громада",
+            "м. Хмельницький",
+        }
+    ),
+    "kirovohradska": frozenset(
+        {
+            "Kropyvnytskyi raion",
+            "Кропивницький район",
+            "m. Kropyvnytskyi ta Kropyvnytska terytorialna hromada",
+            "Кропивницька територіальна громада",
+            "м. Кропивницький",
+        }
+    ),
+    "kyivska": frozenset(
+        {
+            "Bilotserkivskyi raion",
+            "Білоцерківський район",
+            "m. Bila Tserkva ta Bilotserkivska terytorialna hromada",
+            "Білоцерківська територіальна громада",
+            "м. Біла Церква",
+        }
+    ),
+    "lvivska": frozenset(
+        {
+            "Lvivskyi raion",
+            "Львівський район",
+            "m. Lviv ta Lvivska terytorialna hromada",
+            "Львівська територіальна громада",
+            "м. Львів",
+        }
+    ),
+    "mykolaivska": frozenset(
+        {
+            "Mykolaivskyi raion",
+            "Миколаївський район",
+            "m. Mykolaiv ta Mykolaivska terytorialna hromada",
+            "Миколаївська територіальна громада",
+            "м. Миколаїв",
+        }
+    ),
+    "odeska": frozenset(
+        {
+            "Odeskyi raion",
+            "Одеський район",
+            "m. Odesa ta Odeska terytorialna hromada",
+            "Одеська територіальна громада",
+            "м. Одеса",
+        }
+    ),
+    "poltavska": frozenset(
+        {
+            "Poltavskyi raion",
+            "Полтавський район",
+            "m. Poltava ta Poltavska terytorialna hromada",
+            "Полтавська територіальна громада",
+            "м. Полтава",
+        }
+    ),
+    "rivnenska": frozenset(
+        {
+            "Rivnenskyi raion",
+            "Рівненський район",
+            "m. Rivne ta Rivnenska terytorialna hromada",
+            "Рівненська територіальна громада",
+            "м. Рівне",
+        }
+    ),
+    "sumska": frozenset(
+        {
+            "Sumskyi raion",
+            "Сумський район",
+            "m. Sumy ta Sumska terytorialna hromada",
+            "Сумська територіальна громада",
+            "м. Суми",
+        }
+    ),
+    "ternopilska": frozenset(
+        {
+            "Ternopilskyi raion",
+            "Тернопільський район",
+            "m. Ternopil ta Ternopilska terytorialna hromada",
+            "Тернопільська територіальна громада",
+            "м. Тернопіль",
+        }
+    ),
+    "vinnytska": frozenset(
+        {
+            "Vinnytskyi raion",
+            "Вінницький район",
+            "m. Vinnytsia ta Vinnytska terytorialna hromada",
+            "Вінницька територіальна громада",
+            "м. Вінниця",
+        }
+    ),
+    "volynska": frozenset(
+        {
+            "Lutskyi raion",
+            "Луцький район",
+            "m. Lutsk ta Lutska terytorialna hromada",
+            "Луцька територіальна громада",
+            "м. Луцьк",
+        }
+    ),
+    "zakarpatska": frozenset(
+        {
+            "Uzhhorodskyi raion",
+            "Ужгородський район",
+            "m. Uzhhorod ta Uzhhorodska terytorialna hromada",
+            "Ужгородська територіальна громада",
+            "м. Ужгород",
+        }
+    ),
+    "zaporizka": frozenset(
+        {
+            "Zaporizkyi raion",
+            "Запорізький район",
+            "m. Zaporizhzhia ta Zaporizka terytorialna hromada",
+            "Запорізька територіальна громада",
+            "м. Запоріжжя",
+        }
+    ),
+    "zhytomyrska": frozenset(
+        {
+            "Zhytomyrskyi raion",
+            "Житомирський район",
+            "m. Zhytomyr ta Zhytomyrska terytorialna hromada",
+            "Житомирська територіальна громада",
+            "м. Житомир",
+        }
+    ),
+    "crimea": frozenset(),
+    "luhanska": frozenset(),
+    "kyiv_city": frozenset(),
+}
+
+
+def covers_center(region: str, geo_level: str, location: str | None) -> bool:
+    """Whether an alert at (region, geo_level, location) covers the oblast centre."""
+    if geo_level == "oblast" or region == "kyiv_city":
+        return True
+    return location in CENTER_LOCATIONS[region]

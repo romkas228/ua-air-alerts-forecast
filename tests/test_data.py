@@ -78,12 +78,12 @@ def test_panel_minutes_and_targets(hist: pd.DataFrame) -> None:
     p = build_panel(hist, ts("2026-09-06 10:00"), ts("2026-09-06 14:00"), BREAK)
     kyiv = p[p["region"] == "kyiv_city"].set_index("hour")
     assert kyiv["alert_minutes"].tolist() == [30, 60, 15, 0]
-    assert kyiv["y_any"].tolist() == [1, 1, 1, 0]
+    assert kyiv["y_alert"].tolist() == [1, 1, 1, 0]
     # Overlapping raion + oblast alerts are unioned, not double counted: 11:00-11:40.
     kh = p[p["region"] == "kharkivska"].set_index("hour")
     assert kh.loc[ts("2026-09-06 11:00"), "alert_minutes"] == 40
     # Regions without events are present with zeros.
-    assert p[p["region"] == "lvivska"]["y_any"].sum() == 0
+    assert p[p["region"] == "lvivska"]["y_alert"].sum() == 0
     assert p["region"].nunique() == 26
 
 
@@ -96,7 +96,7 @@ def test_panel_red_is_na_before_regime_break(fresh: pd.DataFrame) -> None:
 
 def test_panel_only_counts_air_raids(fresh: pd.DataFrame) -> None:
     p = build_panel(fresh, ts("2026-09-06 09:00"), ts("2026-09-06 10:00"), BREAK)
-    assert p.loc[p["region"] == "kharkivska", "y_any"].sum() == 0  # artillery only
+    assert p.loc[p["region"] == "kharkivska", "y_alert"].sum() == 0  # artillery only
 
 
 def test_panel_ongoing_alert_is_clipped_at_end(fresh: pd.DataFrame) -> None:
@@ -120,3 +120,35 @@ def test_stitch_takes_each_source_on_its_side(hist: pd.DataFrame, fresh: pd.Data
 
 def test_observed_until_uses_data_not_download_time(fresh: pd.DataFrame) -> None:
     assert sources.observed_until(fresh) == ts("2026-09-06 13:30")
+
+
+def test_target_only_counts_alerts_covering_the_centre() -> None:
+    from uaalerts.data.regions import CENTER_LOCATIONS, covers_center
+
+    assert covers_center("dnipropetrovska", "oblast", "Dnipropetrovska oblast")
+    assert covers_center("dnipropetrovska", "raion", "Дніпровський район")
+    assert covers_center("dnipropetrovska", "city", "м. Дніпро")
+    assert not covers_center("dnipropetrovska", "raion", "Нікопольський район")
+    assert covers_center("kyiv_city", "oblast", "м. Київ")
+    # every region has an entry (empty = oblast-level only)
+    assert set(CENTER_LOCATIONS) == set(REGION_IDS)
+
+    events = pd.DataFrame(
+        {
+            "region": ["dnipropetrovska", "dnipropetrovska"],
+            "raion": [pd.NA, pd.NA],
+            "location": ["Нікопольський район", "Дніпровський район"],
+            "geo_level": ["raion", "raion"],
+            "alert_type": ["air_raid", "air_raid"],
+            "alert_level": ["yellow", "red"],
+            "started_at": [ts("2026-09-10 00:00"), ts("2026-09-10 02:00")],
+            "finished_at": [ts("2026-09-10 03:00"), ts("2026-09-10 02:30")],
+            "source": "test",
+            "source_id": ["a", "b"],
+        }
+    )
+    p = build_panel(events, ts("2026-09-10 00:00"), ts("2026-09-10 04:00"), BREAK)
+    d = p[p["region"] == "dnipropetrovska"]
+    assert d["y_oblast_any"].tolist() == [1, 1, 1, 0]
+    assert d["y_alert"].tolist() == [0, 0, 1, 0]
+    assert d["y_red"].tolist() == [0, 0, 1, 0]

@@ -71,7 +71,7 @@ def build() -> None:
 
     agreement = overlap_agreement(hist, fresh, regime_break=regime_break)
     total = (agreement["agree"] * agreement["hours"]).sum() / agreement["hours"].sum()
-    typer.echo(f"source overlap agreement (hourly y_any): {total:.1%}")
+    typer.echo(f"source overlap agreement (hourly y_alert): {total:.1%}")
 
     events = stitch(hist, fresh)
     panel = build_panel(

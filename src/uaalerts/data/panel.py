@@ -8,9 +8,19 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from uaalerts.data.regions import REGION_IDS
+from uaalerts.data.regions import REGION_IDS, covers_center
 
 HOUR = pd.Timedelta(hours=1)
+PANEL_COLUMNS = [
+    "region",
+    "hour",
+    "y_alert",
+    "alert_minutes",
+    "y_red",
+    "red_minutes",
+    "y_oblast_any",
+    "oblast_minutes",
+]
 
 
 def merge_intervals(starts: pd.Series, ends: pd.Series) -> pd.DataFrame:
@@ -60,10 +70,14 @@ def build_panel(
 ) -> pd.DataFrame:
     """Hourly panel over [start, end) for each region.
 
-    Columns: region, hour, alert_minutes, y_any, red_minutes, y_red.
-    `y_red`/`red_minutes` are <NA> before `regime_break` (no levels existed).
-    Ongoing alerts (finished_at NaT) are treated as active until `end`, which must be
-    the source snapshot time — never later.
+    Targets (centre = oblast administrative centre, see `regions.covers_center`):
+      y_alert / alert_minutes  air-raid alert covering the centre, any level
+      y_red / red_minutes      red-level alert covering the centre; <NA> before
+                               `regime_break` (levels did not exist)
+    Context (not targets): y_oblast_any / oblast_minutes  any air-raid alert anywhere in
+    the oblast.
+    Ongoing alerts (finished_at NaT) are treated as active until `end`, which must be the
+    time the source was last observed — never later.
     """
     start, end = start.floor("h"), end.floor("h")
     hours = pd.date_range(start, end, freq="h", inclusive="left")
@@ -71,28 +85,35 @@ def build_panel(
     fin = air["finished_at"].fillna(end)
     air["finished_at"] = fin.where(fin <= end, end)
     air = air[air["finished_at"] > air["started_at"]]
+    air["center"] = [
+        covers_center(r, g, loc)
+        for r, g, loc in zip(air["region"], air["geo_level"], air["location"], strict=True)
+    ]
+
+    def minutes(df: pd.DataFrame) -> np.ndarray:
+        return _minutes_per_hour(merge_intervals(df["started_at"], df["finished_at"]), hours)
 
     frames = []
     for region in regions:
         g = air[air["region"] == region]
-        red = g[g["alert_level"] == "red"]
-        all_min = _minutes_per_hour(merge_intervals(g["started_at"], g["finished_at"]), hours)
-        red_min = _minutes_per_hour(merge_intervals(red["started_at"], red["finished_at"]), hours)
+        c = g[g["center"]]
         frames.append(
             pd.DataFrame(
                 {
                     "region": region,
                     "hour": hours,
-                    "alert_minutes": all_min,
-                    "red_minutes": red_min,
+                    "alert_minutes": minutes(c),
+                    "red_minutes": minutes(c[c["alert_level"] == "red"]),
+                    "oblast_minutes": minutes(g),
                 }
             )
         )
     panel = pd.concat(frames, ignore_index=True)
-    panel["y_any"] = (panel["alert_minutes"] > 0).astype("int8")
+    panel["y_alert"] = (panel["alert_minutes"] > 0).astype("int8")
+    panel["y_oblast_any"] = (panel["oblast_minutes"] > 0).astype("int8")
     pre = panel["hour"] < regime_break
     panel["y_red"] = (panel["red_minutes"] > 0).astype("Int8")
     panel.loc[pre, "y_red"] = pd.NA
     panel.loc[pre, "red_minutes"] = np.nan
     panel["region"] = panel["region"].astype("category")
-    return panel[["region", "hour", "alert_minutes", "y_any", "red_minutes", "y_red"]]
+    return panel[PANEL_COLUMNS]
