@@ -1,18 +1,29 @@
 # Architecture — ua-air-alerts-forecast
 
-Status: **draft for review** (stage 2). Decisions log lives in `CLAUDE.md`.
+Status: **agreed** (stage 2), updated with stage-3 findings. Decisions log lives in `CLAUDE.md`.
 
 ## 1. Problem statement
 
-At a forecast origin `t` (every 6 h: 00/06/12/18 Europe/Kyiv) predict, for every oblast `r`
-and every lead `h ∈ 1..168`, the probability that the hour `[t+h-1, t+h)` contains an alert:
+At a forecast origin `t` (every 6 h: 00/06/12/18 Europe/Kyiv) predict, for every region `r`
+and every lead `h ∈ 1..168`, the probability that the hour `[t+h-1, t+h)` contains an alert
+**covering the oblast's administrative centre**:
 
-- **`y_any`** (primary): any active alert in oblast `r` — oblast-wide **or** in at least one
-  raion/hromada of `r`, any level (yellow or red).
-- **`y_red`** (experimental): a red-level alert in oblast `r`. Only exists since 2026-09-06.
+- **`y_alert`** (primary): an air-raid alert of any level that covers the centre. That means an
+  oblast-wide alert, or an alert in the centre's raion, hromada or city
+  (`regions.CENTER_LOCATIONS`). Donetska → Kramatorsk, Kyivska → Bila Tserkva,
+  Kyiv City → any alert.
+- **`y_red`** (experimental): the same, red level only. Only exists since 2026-09-06.
 
-Excluded: regions with a de-facto constant alert / no data (Luhansk, Crimea, …),
-detected automatically from training data only.
+Why the centre: since autumn 2025 alerts are raion-level, and chronically alerted frontline
+raions (e.g. Nikopol, 94% of hours) made "any alert in the oblast" ≈ 1.0 for 5 oblasts.
+"Any alert in the oblast" is kept as a feature (`y_oblast_any`).
+
+The regime shift is significant. Since 2026-09-06 the yellow level (drones) inflates alert time,
+e.g. Kyiv `y_alert` rate went from 0.14 (2025) to 0.58, while red stays at about 0.07.
+
+Exclusion is decided per target. A region is excluded from the metrics if more than 95% of its
+hours were alert hours in the 28 days before the test start (expected for `y_alert`:
+Zaporizka, Donetska, Crimea, Luhanska). The dashboard still shows these regions, with a note.
 
 ## 2. Data sources
 
@@ -52,14 +63,14 @@ train / evaluate / forecast / report / dashboard
 2. Origin features use history `< t` only. Target-hour features are calendar-only
    (hour of day, day of week, lead), which is known in advance.
 3. Climatology/baselines and region exclusion are computed from the training window only.
-4. Splits are strictly chronological, with a 168 h **embargo** between train and val/test,
-   so that no training label overlaps the evaluation period.
-5. Scalers, calibrators and encoders are fitted on the training (or validation) part only.
+4. Splits are strictly chronological. A model used from time `T` trains only on rows with
+   `origin + 168 h ≤ T` (purging), so no training label comes from after `T`.
+5. Anything fitted (scalers, encoders, climatology, exclusion lists) uses training data only.
 6. Text features are filtered by `published_at < t` (`t` is the origin, not the target hour).
 7. **Automated tests:**
    - *truncation invariance:* features computed on the full history equal features computed
      on history truncated at `t`;
-   - split ordering and embargo assertions;
+   - split ordering and purging assertions;
    - label rows never feed origin features.
 
 ## 5. Features (v1, alerts only)
@@ -79,28 +90,30 @@ train / evaluate / forecast / report / dashboard
 | Persistence (`p = active at t`, decays to climatology) | naive baseline |
 | Seasonal climatology (oblast × hour × dow, trailing 28 d) | strong baseline |
 | **LightGBM**, one global model for all oblasts × leads | main model |
-| Isotonic calibration on validation | calibrated probabilities |
 
 Size: about 1,460 origins/yr × 24 oblasts × 168 leads ≈ 5.9M rows/yr. If needed, training
 subsamples leads (all leads ≤ 24, every 3rd lead beyond 24), while evaluation always uses all leads.
 
-## 7. Evaluation
+## 7. Evaluation — weekly walk-forward
 
 ```
-──── train ────┤embargo├── val (4 w) ──┤embargo├── test = last 4 weeks ──► now
+history ─────────────────────────────┬ test w1 ┬ test w2 ┬ test w3 ┬ test w4 ┤ now
+   fit₁ on rows with origin+168h ≤ T₁ ┘         │         │         │
+   fit₂ on rows with origin+168h ≤ T₂ ──────────┘   …     …
 ```
 
-- Val is used for hyperparameters and calibration. After that the model is refit on train+val
-  and evaluated once on test.
-- **Metrics:** Brier score, Brier skill score vs climatology, log loss, ROC-AUC, PR-AUC,
-  reliability diagram.
-- **Breakdown:** by lead bucket (1–6 h, 7–24 h, 1–3 d, 4–7 d), by oblast, and by time of day.
-- Test origins are limited so that the full 168 h window ends before the last observed hour
-  (or partial horizons are scored and flagged).
-- ⚠️ The test period (≈ 2026-09-12 → 10-10) lies fully after the regime break and is fully
-  covered by the new source. Val straddles both, so this has to be reported.
-- ⚠️ `y_red` has only ~6 days of history before test, so it gets a separate, shorter walk-forward
-  scheme (TBD).
+- **Test** is the last 4 weeks. Before each test week, starting at `T`, the model is refit on all
+  rows whose labels are fully known by `T` (`origin + 168 h ≤ T`, i.e. purging). This mirrors
+  production with a weekly retrain, and it lets the model progressively see the post-2026-09-06
+  regime.
+- **Tuning** uses the same weekly walk-forward on the 4 weeks before the test. The test is never
+  touched while choosing anything.
+- There is no separate calibration step. Calibration is checked with reliability diagrams.
+- **Metrics:** Brier score, Brier skill score vs climatology, log loss, ROC-AUC, PR-AUC.
+- **Breakdown:** by lead bucket (1–6 h, 7–24 h, 1–3 d, 4–7 d), by region, by test week and by time
+  of day.
+- Test origins whose 168 h window runs past the data end are scored on the observed leads only.
+- **Experiment:** training on the full history vs. only the last N months vs. recency weighting.
 
 ## 8. Tech stack
 
@@ -134,8 +147,8 @@ data/ (gitignored)     raw/ interim/ processed/
 
 | # | Milestone | Done when |
 |---|---|---|
-| M1 | Project scaffold (uv, ruff, pytest, CI) | `uv run pytest` is green in CI |
-| M2 | Fetch + normalize + source-agreement check | `events.parquet` + overlap report |
+| M1 ✅ | Project scaffold (uv, ruff, pytest, CI) | `uv run pytest` is green in CI |
+| M2 ✅ | Fetch + normalize + source-agreement check | `events.parquet` + overlap report |
 | M3 | Hourly panel + targets + EDA notebook/report | plots of seasonality and the regime break |
 | M4 | `as_of`, features, splits + leakage tests | truncation-invariance tests pass |
 | M5 | Baselines + evaluation harness | metrics table by lead bucket |

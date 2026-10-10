@@ -32,7 +32,7 @@ def info() -> None:
     typer.echo(f"data dir:   {settings.data_dir}")
     typer.echo(f"origins:    {cfg.origin_hours} ({cfg.timezone})")
     typer.echo(f"max lead:   {cfg.max_lead_hours} h")
-    typer.echo(f"test/val:   {cfg.test_weeks}w / {cfg.val_weeks}w, embargo {cfg.embargo_hours} h")
+    typer.echo(f"walk-fwd:   test {cfg.test_weeks}w, tune {cfg.tune_weeks}w (weekly refits)")
 
 
 @app.command()

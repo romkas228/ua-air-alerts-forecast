@@ -24,8 +24,9 @@ class ForecastConfig(BaseModel):
     max_lead_hours: int
     lead_buckets: dict[str, tuple[int, int]]
     test_weeks: int
-    val_weeks: int
-    embargo_hours: int
+    tune_weeks: int
+    exclude_if_rate_above: float
+    exclude_window_days: int
     regime_break: str
     sources: Sources
 

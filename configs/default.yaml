@@ -7,9 +7,12 @@ lead_buckets:                  # inclusive lead ranges for reporting
   "7-24h": [7, 24]
   "1-3d": [25, 72]
   "4-7d": [73, 168]
+# Weekly walk-forward: refit before each test week on rows whose labels are known by then
+# (origin + max_lead <= week start). Tuning uses the same scheme on the weeks before test.
 test_weeks: 4
-val_weeks: 4
-embargo_hours: 168
+tune_weeks: 4
+exclude_if_rate_above: 0.95     # per target, measured on the 28 days before test start
+exclude_window_days: 28
 regime_break: "2026-09-06T00:00:00+03:00"   # CMU resolution No. 1092: yellow/red alert levels
 
 sources:
