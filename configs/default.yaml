@@ -1,0 +1,18 @@
+# Forecasting setup (see docs/ARCHITECTURE.md and the decisions log in CLAUDE.md).
+timezone: Europe/Kyiv
+origin_hours: [0, 6, 12, 18]   # local Kyiv time
+max_lead_hours: 168
+lead_buckets:                  # inclusive lead ranges for reporting
+  "1-6h": [1, 6]
+  "7-24h": [7, 24]
+  "1-3d": [25, 72]
+  "4-7d": [73, 168]
+test_weeks: 4
+val_weeks: 4
+embargo_hours: 168
+regime_break: "2026-09-06T00:00:00+03:00"   # CMU resolution No. 1092: yellow/red alert levels
+
+sources:
+  vadimkin_official_url: https://raw.githubusercontent.com/Vadimkin/ukrainian-air-raid-sirens-dataset/main/datasets/official_data_en.csv
+  alerts_in_ua_mirror_url: https://raw.githubusercontent.com/JustJimer/ukraine-air-alert-stats/main/archive/alerts_in_ua.csv
+  siren_api_url: https://siren.pp.ua/api/v3
