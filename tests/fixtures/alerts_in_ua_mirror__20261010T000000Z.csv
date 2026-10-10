@@ -1,0 +1,5 @@
+id,location_uid,location_type,location_title,location_oblast,location_raion,started_at,finished_at,alert_type,alert_level,threats
+1,16,oblast,Луганська область,Луганська область,,2022-04-04T16:45:39.000Z,,air_raid,red,
+2,31,oblast,м. Київ,м. Київ,,2026-09-06T12:30:00.000Z,2026-09-06T13:10:00.000Z,air_raid,yellow,
+3,100,raion,Харківський район,Харківська область,,2026-09-06T13:00:00.000Z,2026-09-06T13:30:00.000Z,air_raid,red,
+4,101,hromada,Вовчанська територіальна громада,Харківська область,Чугуївський район,2026-09-06T09:00:00.000Z,2026-09-06T09:30:00.000Z,artillery_shelling,red,
