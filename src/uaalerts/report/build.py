@@ -173,7 +173,7 @@ def build_report(
     regime_plot(panel, "kyiv_city", regime_break, fig_dir / "regime_kyiv.png")
     sections = []
     for target, label in (("y_alert", "Alert of any level"), ("y_red", "Red-level alert")):
-        d = reports_dir / f"{target}_test"
+        d = reports_dir / f"{target}_dev"
         if not (d / "predictions.parquet").exists():
             continue
         preds = pd.read_parquet(d / "predictions.parquet")
@@ -183,7 +183,7 @@ def build_report(
         skill_by_lead(
             preds,
             shown,
-            f"{label}: skill by lead time (test, 4 weeks)",
+            f"{label}: skill by lead time (dev period, 4 weeks)",
             fig_dir / f"skill_{target}.png",
         )
         reliability_plot(preds, f"{label}: reliability", fig_dir / f"reliability_{target}.png")

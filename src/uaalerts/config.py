@@ -25,6 +25,7 @@ class ForecastConfig(BaseModel):
     lead_buckets: dict[str, tuple[int, int]]
     test_weeks: int
     tune_weeks: int
+    dev_end: str
     exclude_if_rate_above: float
     exclude_window_days: int
     regime_break: str

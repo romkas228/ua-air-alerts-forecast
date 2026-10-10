@@ -117,7 +117,7 @@ def build() -> None:
 @app.command()
 def evaluate(
     target: str = typer.Option("y_alert", help="y_alert | y_red"),
-    phase: str = typer.Option("tune", help="tune (weeks before test) | test (last weeks)"),
+    phase: str = typer.Option("dev", help="tune | dev | prospective (see configs)"),
     models: str = typer.Option("climatology,persistence,gbm", help="comma-separated"),
 ) -> None:
     """Weekly walk-forward evaluation; writes predictions and metric tables to reports/."""

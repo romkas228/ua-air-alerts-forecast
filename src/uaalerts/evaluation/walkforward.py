@@ -12,7 +12,14 @@ import pandas as pd
 
 from uaalerts.config import ForecastConfig
 from uaalerts.data.regions import OCCUPIED
-from uaalerts.evaluation.splits import Fold, excluded_regions, in_fold, known_at, weekly_folds
+from uaalerts.evaluation.splits import (
+    WEEK,
+    Fold,
+    excluded_regions,
+    in_fold,
+    known_at,
+    weekly_folds,
+)
 from uaalerts.features.build import (
     MIN_HISTORY_HOURS,
     make_dataset,
@@ -42,6 +49,26 @@ class Spec:
     window_days: int | None = None
 
 
+def folds_for(phase: str, cfg: ForecastConfig, data_end: pd.Timestamp) -> list[Fold]:
+    """tune: 4 weeks before dev · dev: 4 weeks ending at the frozen dev end (the former,
+    already-seen test) · prospective: weekly folds after the dev end, never seen while
+    developing (the last fold may be partial)."""
+    dev_end = pd.Timestamp(cfg.dev_end).tz_convert("UTC")
+    if phase == "tune":
+        return weekly_folds(dev_end, cfg.tune_weeks, skip_weeks=cfg.test_weeks, prefix="tune-w")
+    if phase == "dev":
+        return weekly_folds(dev_end, cfg.test_weeks, prefix="dev-w")
+    if phase == "prospective":
+        if data_end <= dev_end:
+            raise ValueError("no data after the dev end yet; run `uaalerts fetch && build`")
+        folds, start, k = [], dev_end, 1
+        while start < data_end:
+            folds.append(Fold(f"prosp-w{k}", start, min(start + WEEK, data_end)))
+            start, k = start + WEEK, k + 1
+        return folds
+    raise ValueError(f"unknown phase {phase!r}")
+
+
 def train_leads(max_lead: int) -> np.ndarray:
     """All leads up to 24 h, every 4th beyond (evaluation always uses every lead)."""
     leads: np.ndarray = np.concatenate([np.arange(1, 25), np.arange(28, max_lead + 1, 4)])
@@ -58,9 +85,7 @@ def run(
 ) -> tuple[pd.DataFrame, dict[str, list[str]]]:
     regime_break = pd.Timestamp(cfg.regime_break).tz_convert("UTC")
     data_end = panel["hour"].max() + HOUR
-    skip = cfg.test_weeks if phase == "tune" else 0
-    n = cfg.tune_weeks if phase == "tune" else cfg.test_weeks
-    folds: list[Fold] = weekly_folds(data_end, n, skip_weeks=skip, prefix=f"{phase}-w")
+    folds = folds_for(phase, cfg, data_end)
 
     first_origin = max(train_start, panel["hour"].min() + MIN_HISTORY_HOURS * HOUR + HOUR)
     origins = make_origins(first_origin, folds[-1].end - HOUR, cfg.origin_hours, cfg.timezone)

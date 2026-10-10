@@ -6,9 +6,9 @@
     "zaporizka"
   ],
   "folds": [
-    "test-w1",
-    "test-w2",
-    "test-w3",
-    "test-w4"
+    "dev-w1",
+    "dev-w2",
+    "dev-w3",
+    "dev-w4"
   ]
 }

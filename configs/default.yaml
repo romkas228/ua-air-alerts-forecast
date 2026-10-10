@@ -9,8 +9,11 @@ lead_buckets:                  # inclusive lead ranges for reporting
   "4-7d": [73, 168]
 # Weekly walk-forward: refit before each test week on rows whose labels are known by then
 # (origin + max_lead <= week start). Tuning uses the same scheme on the weeks before test.
-test_weeks: 4
+test_weeks: 4                  # length of the dev period
 tune_weeks: 4
+# The former test period is now the dev period (model selection). Data after dev_end did not
+# exist while developing: the final, prospective evaluation uses only that.
+dev_end: "2026-10-10T09:00:00+00:00"
 exclude_if_rate_above: 0.95     # per target, measured on the 28 days before test start
 exclude_window_days: 28
 regime_break: "2026-09-06T00:00:00+03:00"   # CMU resolution No. 1092: yellow/red alert levels
