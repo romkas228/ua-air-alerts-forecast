@@ -13,6 +13,18 @@ from uaalerts.config import get_config, get_settings
 from uaalerts.data import sources
 from uaalerts.data.panel import build_panel
 from uaalerts.data.stitch import STITCH_AT, overlap_agreement, stitch
+from uaalerts.evaluation.metrics import lead_bucket, score_table
+from uaalerts.evaluation.walkforward import Spec, run
+from uaalerts.models.baselines import Climatology, Persistence
+from uaalerts.models.gbm import GBM
+
+SPECS: dict[str, Spec] = {
+    "climatology": Spec("climatology", Climatology),
+    "persistence": Spec("persistence", Persistence),
+    "gbm": Spec("gbm", GBM),
+    "gbm_365d": Spec("gbm_365d", GBM, window_days=365),
+    "gbm_hl90": Spec("gbm_hl90", lambda: GBM(half_life_days=90)),
+}
 
 app = typer.Typer(help="Air raid alert forecasting pipeline.", no_args_is_help=True)
 
@@ -99,6 +111,44 @@ def build() -> None:
     (settings.interim_dir / "meta.json").write_text(json.dumps(meta, indent=2))
     typer.echo(f"events: {len(events):,} -> {settings.interim_dir / 'events.parquet'}")
     typer.echo(f"panel:  {len(panel):,} rows, {panel_hours[0]} .. {panel_hours[1]}")
+
+
+@app.command()
+def evaluate(
+    target: str = typer.Option("y_alert", help="y_alert | y_red"),
+    phase: str = typer.Option("tune", help="tune (weeks before test) | test (last weeks)"),
+    models: str = typer.Option("climatology,persistence,gbm", help="comma-separated"),
+) -> None:
+    """Weekly walk-forward evaluation; writes predictions and metric tables to reports/."""
+    settings, cfg = get_settings(), get_config()
+    names = [m.strip() for m in models.split(",") if m.strip()]
+    unknown = sorted(set(names) - set(SPECS))
+    if unknown:
+        raise typer.BadParameter(f"unknown models {unknown}; choose from {sorted(SPECS)}")
+    if "climatology" not in names:
+        names.insert(0, "climatology")  # reference for the Brier skill score
+    panel = pd.read_parquet(settings.processed_dir / "panel.parquet")
+    preds, info = run(panel, cfg, target, [SPECS[n] for n in names], phase=phase)
+
+    out_dir = settings.data_dir.parent / "reports" / f"{target}_{phase}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    preds.to_parquet(out_dir / "predictions.parquet", index=False)
+    preds["lead_bucket"] = lead_bucket(preds["lead"])
+    tables = {
+        "overall": score_table(preds, names),
+        "by_lead": score_table(preds, names, by=["lead_bucket"]),
+        "by_fold": score_table(preds, names, by=["fold"]),
+        "by_region": score_table(preds, names, by=["region"]),
+    }
+    for name, table in tables.items():
+        table.round(4).to_csv(out_dir / f"metrics_{name}.csv", index=False)
+    (out_dir / "info.json").write_text(json.dumps(info, indent=2) + "\n")
+
+    typer.echo(f"excluded: {', '.join(info['excluded'])}")
+    cols = ["lead_bucket", "model", "base_rate", "brier", "bss", "roc_auc", "pr_auc"]
+    typer.echo(tables["by_lead"][cols].round(3).to_string(index=False))
+    typer.echo(tables["overall"][cols[1:]].round(3).to_string(index=False))
+    typer.echo(f"-> {out_dir}")
 
 
 if __name__ == "__main__":

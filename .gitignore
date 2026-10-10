@@ -22,3 +22,6 @@ mlruns/
 .DS_Store
 .idea/
 .vscode/
+
+# Evaluation outputs: metrics are committed, predictions are not
+reports/*/predictions.parquet
