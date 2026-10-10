@@ -27,3 +27,4 @@ AI (Claude Code) — основний інженерний інструмент 
 
 ## Журнал рішень
 - 2026-10-10: назва репозиторію `ua-air-alerts-forecast`, директорія `~/Projects/ua-air-alerts-forecast`.
+- 2026-10-10: GitHub-репо приватне в особистому акаунті — https://github.com/romkas228/ua-air-alerts-forecast (пізніше користувач зробить публічним).
