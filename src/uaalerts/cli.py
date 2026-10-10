@@ -165,5 +165,58 @@ def report() -> None:
     typer.echo(f"-> {path}")
 
 
+@app.command()
+def train(target: str = typer.Option("all", help="y_alert | y_red | all")) -> None:
+    """Fit the final GBM on everything known at the end of the data (models/)."""
+    from uaalerts.forecast import train_final
+
+    settings, cfg = get_settings(), get_config()
+    panel = pd.read_parquet(settings.processed_dir / "panel.parquet")
+    for t in TARGETS if target == "all" else [target]:
+        path = train_final(panel, cfg, t, settings.data_dir.parent / "models")
+        typer.echo(f"{t}: -> {path}")
+
+
+@app.command()
+def forecast(target: str = typer.Option("all", help="y_alert | y_red | all")) -> None:
+    """7-day hourly forecast for every region from the latest origin."""
+    from uaalerts.forecast import make_forecast
+    from uaalerts.models.gbm import GBM
+
+    settings, cfg = get_settings(), get_config()
+    panel = pd.read_parquet(settings.processed_dir / "panel.parquet")
+    model_dir = settings.data_dir.parent / "models"
+    frames = []
+    for t in TARGETS if target == "all" else [target]:
+        path = model_dir / f"{t}_gbm.txt"
+        if not path.exists():
+            raise typer.BadParameter(f"no model at {path}; run `uaalerts train` first")
+        frames.append(make_forecast(panel, cfg, t, GBM.load(path)))
+    fc = pd.concat(frames, ignore_index=True)
+    out = settings.processed_dir / "forecast.parquet"
+    fc.to_parquet(out, index=False)
+    origin = fc["origin"].iloc[0]
+    typer.echo(f"origin {origin} UTC, {len(fc):,} rows -> {out}")
+    top = (
+        fc[(fc["target"] == "y_alert") & (fc["lead"] <= 24) & ~fc["excluded"]]
+        .groupby("region", observed=True)["p_gbm"]
+        .max()
+        .sort_values(ascending=False)
+        .head(8)
+    )
+    typer.echo("highest alert probability in the next 24 h:")
+    typer.echo(top.round(2).to_string())
+
+
+@app.command()
+def update(retrain: bool = typer.Option(False, help="Also refit the final models.")) -> None:
+    """fetch -> build -> (train) -> forecast: refresh everything the dashboard shows."""
+    fetch(historical=False)
+    build()
+    if retrain:
+        train(target="all")
+    forecast(target="all")
+
+
 if __name__ == "__main__":
     app()

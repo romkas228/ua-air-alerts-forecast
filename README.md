@@ -21,4 +21,18 @@ uv run pytest           # tests (incl. leakage checks)
 uv run pre-commit install
 ```
 
+## See it working
+
+```bash
+uv run uaalerts update --retrain      # fresh data -> panel -> models -> 7-day forecast (~2 min)
+uv run streamlit run app/dashboard.py # opens http://localhost:8501
+```
+
+The dashboard shows the hourly alert probability for the next 7 days per region (line chart +
+heatmap), a ranking of regions, the live alert state (siren.pp.ua, display only) and the model
+quality on the dev period. Evaluation report: [`reports/REPORT.md`](reports/REPORT.md).
+
+Pipeline commands: `fetch`, `build`, `evaluate --target y_alert --phase dev`, `report`,
+`train`, `forecast` (`uv run uaalerts --help`).
+
 Docs: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
