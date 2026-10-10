@@ -1,0 +1,14 @@
+{
+  "excluded": [
+    "crimea",
+    "donetska",
+    "luhanska",
+    "zaporizka"
+  ],
+  "folds": [
+    "test-w1",
+    "test-w2",
+    "test-w3",
+    "test-w4"
+  ]
+}

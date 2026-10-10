@@ -1,0 +1,16 @@
+{
+  "excluded": [
+    "crimea",
+    "donetska",
+    "kharkivska",
+    "luhanska",
+    "sumska",
+    "zaporizka"
+  ],
+  "folds": [
+    "tune-w1",
+    "tune-w2",
+    "tune-w3",
+    "tune-w4"
+  ]
+}

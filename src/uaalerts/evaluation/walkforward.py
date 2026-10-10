@@ -35,10 +35,10 @@ class Model(Protocol):
 
 @dataclass(frozen=True)
 class Spec:
-    """A model to evaluate: factory + optional training window (days before the fold)."""
+    """A model to evaluate: factory(target) + optional training window (days before fold)."""
 
     name: str
-    factory: Callable[[], Model]
+    factory: Callable[[str], Model]
     window_days: int | None = None
 
 
@@ -60,7 +60,7 @@ def run(
     data_end = panel["hour"].max() + HOUR
     skip = cfg.test_weeks if phase == "tune" else 0
     n = cfg.tune_weeks if phase == "tune" else cfg.test_weeks
-    folds: list[Fold] = weekly_folds(data_end, n, skip_weeks=skip, prefix=phase[0])
+    folds: list[Fold] = weekly_folds(data_end, n, skip_weeks=skip, prefix=f"{phase}-w")
 
     first_origin = max(train_start, panel["hour"].min() + MIN_HISTORY_HOURS * HOUR + HOUR)
     origins = make_origins(first_origin, folds[-1].end - HOUR, cfg.origin_hours, cfg.timezone)
@@ -93,7 +93,7 @@ def run(
             if spec.window_days is not None:
                 tr = tr[tr["origin"] >= fold.start - pd.Timedelta(days=spec.window_days)]
             log.info("%s %s: fit %s on %d rows", target, fold.name, spec.name, len(tr))
-            model = spec.factory().fit(tr)
+            model = spec.factory(target).fit(tr)
             test[f"p_{spec.name}"] = model.predict(test)
         out.append(test)
     preds = pd.concat(out, ignore_index=True)

@@ -15,15 +15,16 @@ from uaalerts.data.panel import build_panel
 from uaalerts.data.stitch import STITCH_AT, overlap_agreement, stitch
 from uaalerts.evaluation.metrics import lead_bucket, score_table
 from uaalerts.evaluation.walkforward import Spec, run
+from uaalerts.features.build import TARGETS
 from uaalerts.models.baselines import Climatology, Persistence
 from uaalerts.models.gbm import GBM
 
 SPECS: dict[str, Spec] = {
-    "climatology": Spec("climatology", Climatology),
-    "persistence": Spec("persistence", Persistence),
-    "gbm": Spec("gbm", GBM),
-    "gbm_365d": Spec("gbm_365d", GBM, window_days=365),
-    "gbm_hl90": Spec("gbm_hl90", lambda: GBM(half_life_days=90)),
+    "climatology": Spec("climatology", lambda t: Climatology()),
+    "persistence": Spec("persistence", lambda t: Persistence(f"{TARGETS[t]}_active_now")),
+    "gbm": Spec("gbm", lambda t: GBM()),
+    "gbm_365d": Spec("gbm_365d", lambda t: GBM(), window_days=365),
+    "gbm_hl90": Spec("gbm_hl90", lambda t: GBM(half_life_days=90)),
 }
 
 app = typer.Typer(help="Air raid alert forecasting pipeline.", no_args_is_help=True)
@@ -149,6 +150,19 @@ def evaluate(
     typer.echo(tables["by_lead"][cols].round(3).to_string(index=False))
     typer.echo(tables["overall"][cols[1:]].round(3).to_string(index=False))
     typer.echo(f"-> {out_dir}")
+
+
+@app.command()
+def report() -> None:
+    """Build reports/REPORT.md and figures from the latest test-phase evaluations."""
+    from uaalerts.report.build import build_report
+
+    settings, cfg = get_settings(), get_config()
+    panel = pd.read_parquet(settings.processed_dir / "panel.parquet")
+    meta = json.loads((settings.interim_dir / "meta.json").read_text())
+    regime_break = pd.Timestamp(cfg.regime_break).tz_convert("UTC")
+    path = build_report(settings.data_dir.parent / "reports", panel, regime_break, meta)
+    typer.echo(f"-> {path}")
 
 
 if __name__ == "__main__":
