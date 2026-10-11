@@ -25,3 +25,4 @@ mlruns/
 
 # Evaluation outputs: metrics are committed, predictions are not
 reports/*/predictions.parquet
+.logs/

@@ -15,7 +15,7 @@ from uaalerts.data.panel import build_panel
 from uaalerts.data.stitch import STITCH_AT, overlap_agreement, stitch
 from uaalerts.evaluation.metrics import lead_bucket, score_table
 from uaalerts.evaluation.walkforward import Spec, run
-from uaalerts.features.build import TARGETS
+from uaalerts.features.build import SEASON_FEATURES, TARGETS, TREND_FEATURES
 from uaalerts.models.baselines import Climatology, Persistence
 from uaalerts.models.gbm import GBM
 
@@ -25,6 +25,12 @@ SPECS: dict[str, Spec] = {
     "gbm": Spec("gbm", lambda t: GBM()),
     "gbm_365d": Spec("gbm_365d", lambda t: GBM(), window_days=365),
     "gbm_hl90": Spec("gbm_hl90", lambda t: GBM(half_life_days=90)),
+    # Improvement round 2026-10-12 (feature-group ablations, residual-over-climatology).
+    "gbm_v1": Spec("gbm_v1", lambda t: GBM(drop=TREND_FEATURES | SEASON_FEATURES)),
+    "gbm_trend": Spec("gbm_trend", lambda t: GBM(drop=SEASON_FEATURES)),
+    "gbm_resid": Spec("gbm_resid", lambda t: GBM(base="climatology", drop=SEASON_FEATURES)),
+    "gbm_trend_season": Spec("gbm_trend_season", lambda t: GBM()),
+    "gbm_resid_season": Spec("gbm_resid_season", lambda t: GBM(base="climatology")),
 }
 
 app = typer.Typer(help="Air raid alert forecasting pipeline.", no_args_is_help=True)
@@ -117,7 +123,7 @@ def build() -> None:
 @app.command()
 def evaluate(
     target: str = typer.Option("y_alert", help="y_alert | y_red"),
-    phase: str = typer.Option("dev", help="tune | dev | prospective (see configs)"),
+    phase: str = typer.Option("dev", help="tune | dev | backtest | prospective"),
     models: str = typer.Option("climatology,persistence,gbm", help="comma-separated"),
 ) -> None:
     """Weekly walk-forward evaluation; writes predictions and metric tables to reports/."""
@@ -145,7 +151,7 @@ def evaluate(
         table.round(4).to_csv(out_dir / f"metrics_{name}.csv", index=False)
     (out_dir / "info.json").write_text(json.dumps(info, indent=2) + "\n")
 
-    typer.echo(f"excluded: {', '.join(info['excluded'])}")
+    typer.echo(f"excluded in every fold: {', '.join(info['excluded'])}")
     cols = ["lead_bucket", "model", "base_rate", "brier", "bss", "roc_auc", "pr_auc"]
     typer.echo(tables["by_lead"][cols].round(3).to_string(index=False))
     typer.echo(tables["overall"][cols[1:]].round(3).to_string(index=False))

@@ -16,12 +16,15 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from uaalerts.data.regions import NEIGHBOURS, OCCUPIED
+from uaalerts.data.regions import CENTER_COORDS, NEIGHBOURS, OCCUPIED
+from uaalerts.features.solar import solar_elevation
 
 HOUR = pd.Timedelta(hours=1)
 WINDOWS = (6, 24, 72, 168, 672)  # hours
 PREFIXES = ("alert", "red", "oblast")
 TARGETS = {"y_alert": "alert", "y_red": "red"}
+LAST_YEAR_HOURS = 365 * 24
+ANALOG_HALF_HOURS = 15 * 24
 NEVER = 10_000.0  # "hours since" when the event never happened in the data
 MIN_HISTORY_HOURS = 8 * 168  # longest look-back (8-week hour-of-week climatology)
 
@@ -143,9 +146,24 @@ def origin_features(
         for w in (24, 168):
             feats[f"{p}_starts_{w}h"] = _window_sum(cs_starts, i, w)
 
+    # Trend: recent level vs the 28-day level, and the 14-day slope of daily alert hours.
+    for p in ("alert", "oblast"):
+        base = feats[f"{p}_hours_672h"] / 672
+        feats[f"{p}_anom_24h"] = feats[f"{p}_hours_24h"] / 24 - base
+        feats[f"{p}_anom_168h"] = feats[f"{p}_hours_168h"] / 168 - base
+        feats[f"{p}_logratio_24h_7d"] = np.log(
+            (feats[f"{p}_hours_24h"] / 24 + 0.01) / (feats[f"{p}_hours_168h"] / 168 + 0.01)
+        )
+        feats[f"{p}_starts_momentum"] = feats[f"{p}_starts_24h"] - feats[f"{p}_starts_168h"] / 7
+        cs = _csum(wide.m[f"{p}_minutes"] / 60.0)
+        days = np.stack([_window_sum(cs, i - 24 * k, 24) for k in range(14)])  # k=0 newest
+        x = -np.arange(14, dtype="float64")[:, None, None]
+        xc = x - x.mean()
+        feats[f"{p}_slope_14d"] = (xc * (days - days.mean(axis=0))).sum(axis=0) / (xc**2).sum()
+
     # National and neighbour context (occupied regions excluded from aggregates).
     free = np.array([r not in OCCUPIED for r in wide.regions])
-    for name in ("alert_active_now", "alert_hours_24h", "oblast_active_now"):
+    for name in ("alert_active_now", "alert_hours_24h", "oblast_active_now", "alert_anom_24h"):
         nat = feats[name][:, free].mean(axis=1, keepdims=True)
         feats[f"nat_{name}"] = np.repeat(nat, R, axis=1)
         pos = {r: k for k, r in enumerate(wide.regions)}
@@ -193,6 +211,12 @@ def make_dataset(
     rpos = {r: k for k, r in enumerate(wide.regions)}
     r_idx = ofeats["region"].map(rpos).to_numpy()
     i = ofeats["_i"].to_numpy()
+    lat = ofeats["region"].map(lambda r: CENTER_COORDS[r][0]).to_numpy(float)
+    lon = ofeats["region"].map(lambda r: CENTER_COORDS[r][1]).to_numpy(float)
+    # Last-year analog: target rate over +-15 days around the same hour one year earlier.
+    # Its window ends 350 days before the target hour, i.e. long before any origin.
+    y_cs = _csum(y)
+    n_cs = _csum((~np.isnan(y)).astype("float64"))
 
     frames = []
     for h in leads:
@@ -211,11 +235,32 @@ def make_dataset(
         f["target_dow"] = local.dayofweek.astype("int8")
         f["clim_hod_28d"] = clim_d[jd, r_idx].astype("float32")
         f["clim_how_8w"] = clim_w[jw, r_idx].astype("float32")
+        # Seasonal features (target hour): darkness at the centre, calendar, last-year analog.
+        mid = pd.DatetimeIndex(target_hour) + pd.Timedelta(minutes=30)
+        f["sun_elev"] = solar_elevation(mid, lat, lon).astype("float32")
+        doy = local.dayofyear.to_numpy()
+        f["doy_sin"] = np.sin(2 * np.pi * doy / 365.25).astype("float32")
+        f["doy_cos"] = np.cos(2 * np.pi * doy / 365.25).astype("float32")
+        f["month"] = local.month.astype("int8")
+        lo = np.clip(j - LAST_YEAR_HOURS - ANALOG_HALF_HOURS, 0, T)
+        hi = np.clip(j - LAST_YEAR_HOURS + ANALOG_HALF_HOURS + 1, 0, T)
+        num = y_cs[hi, r_idx] - y_cs[lo, r_idx]
+        den = n_cs[hi, r_idx] - n_cs[lo, r_idx]
+        with np.errstate(invalid="ignore", divide="ignore"):
+            f["last_year_rate"] = np.where(den > 0, num / den, np.nan).astype("float32")
         f["label"] = label.astype("float32")
         frames.append(f)
     return pd.concat(frames, ignore_index=True)
 
 
-def feature_columns(df: pd.DataFrame) -> list[str]:
-    skip = {"origin", "target_hour", "label"}
+TREND_FEATURES = frozenset(
+    f"{p}_{s}"
+    for p in ("alert", "oblast")
+    for s in ("anom_24h", "anom_168h", "logratio_24h_7d", "starts_momentum", "slope_14d")
+) | {"nat_alert_anom_24h", "nb_alert_anom_24h"}
+SEASON_FEATURES = frozenset({"sun_elev", "doy_sin", "doy_cos", "month", "last_year_rate"})
+
+
+def feature_columns(df: pd.DataFrame, drop: frozenset[str] = frozenset()) -> list[str]:
+    skip = {"origin", "target_hour", "label"} | drop
     return [c for c in df.columns if c not in skip]

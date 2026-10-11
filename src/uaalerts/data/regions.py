@@ -343,3 +343,34 @@ NEIGHBOURS: dict[str, tuple[str, ...]] = _neighbours()
 
 # Occupied regions: de-facto constant alert, never part of national aggregates.
 OCCUPIED: frozenset[str] = frozenset({"crimea", "luhanska"})
+
+
+# Approximate coordinates (lat, lon) of each region's centre (see CENTER_LOCATIONS).
+CENTER_COORDS: dict[str, tuple[float, float]] = {
+    "cherkaska": (49.44, 32.06),
+    "chernihivska": (51.50, 31.29),
+    "chernivetska": (48.29, 25.94),
+    "crimea": (44.95, 34.10),
+    "dnipropetrovska": (48.46, 35.05),
+    "donetska": (48.72, 37.56),
+    "ivano_frankivska": (48.92, 24.71),
+    "kharkivska": (49.99, 36.23),
+    "khersonska": (46.64, 32.61),
+    "khmelnytska": (49.42, 26.99),
+    "kirovohradska": (48.51, 32.26),
+    "kyiv_city": (50.45, 30.52),
+    "kyivska": (49.80, 30.11),
+    "luhanska": (48.95, 38.49),
+    "lvivska": (49.84, 24.03),
+    "mykolaivska": (46.98, 31.99),
+    "odeska": (46.48, 30.72),
+    "poltavska": (49.59, 34.55),
+    "rivnenska": (50.62, 26.25),
+    "sumska": (50.91, 34.80),
+    "ternopilska": (49.55, 25.59),
+    "vinnytska": (49.23, 28.47),
+    "volynska": (50.75, 25.34),
+    "zakarpatska": (48.62, 22.29),
+    "zaporizka": (47.84, 35.14),
+    "zhytomyrska": (50.25, 28.66),
+}
