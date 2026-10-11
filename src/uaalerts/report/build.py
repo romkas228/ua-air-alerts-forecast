@@ -24,9 +24,13 @@ TEXT_2 = "#52514e"
 GRID = "#e4e3df"
 MUTED = "#b9b8b2"
 SLOTS = ["#2a78d6", "#eb6834", "#1baf7a"]
-MODEL_COLORS = {"gbm_hl90": SLOTS[0], "gbm": SLOTS[1], "persistence": SLOTS[2]}
 MODEL_LABELS = {
-    "gbm_hl90": "LightGBM, recency-weighted (main)",
+    "gbm_resid": "LightGBM on top of climatology",
+    "gbm_resid_season": "LightGBM on top of climatology + season",
+    "gbm_trend": "LightGBM + trend features",
+    "gbm_trend_season": "LightGBM + trend + season",
+    "gbm_v1": "LightGBM, first feature set",
+    "gbm_hl90": "LightGBM, recency-weighted",
     "gbm": "LightGBM, uniform weights",
     "persistence": "Persistence → climatology",
     "climatology": "Climatology (hour-of-day, 28 d)",
@@ -54,7 +58,12 @@ def _save(fig: Figure, path: Path) -> None:
     plt.close(fig)
 
 
+def label(m: str) -> str:
+    return MODEL_LABELS.get(m, m)
+
+
 def skill_by_lead(preds: pd.DataFrame, models: list[str], title: str, path: Path) -> None:
+    """`models` in slot order (max 3: categorical all-pairs limit)."""
     rows = []
     for lead, g in preds.groupby("lead"):
         ref = brier(g["label"].to_numpy(), g["p_climatology"].to_numpy())
@@ -65,9 +74,9 @@ def skill_by_lead(preds: pd.DataFrame, models: list[str], title: str, path: Path
     fig, ax = plt.subplots(figsize=(8, 4.2))
     ax.axhline(0, color=TEXT_2, linewidth=1)
     ax.text(168, 0.003, "climatology", color=TEXT_2, ha="right", va="bottom", fontsize=9)
-    for m in models:
+    for m, color in zip(models, SLOTS, strict=False):
         s = df[df["model"] == m].set_index("lead")["bss"].rolling(6, min_periods=1).mean()
-        ax.plot(s.index, s.to_numpy(), color=MODEL_COLORS[m], linewidth=2, label=MODEL_LABELS[m])
+        ax.plot(s.index, s.to_numpy(), color=color, linewidth=2, label=label(m))
     ax.set_xlim(1, 168)
     ax.set_xticks([1, 6, 24, 48, 72, 96, 120, 144, 168])
     _style(ax, title, "lead time, hours", "Brier skill score vs climatology")
@@ -75,10 +84,10 @@ def skill_by_lead(preds: pd.DataFrame, models: list[str], title: str, path: Path
     _save(fig, path)
 
 
-def reliability_plot(preds: pd.DataFrame, title: str, path: Path) -> None:
+def reliability_plot(preds: pd.DataFrame, main: str, title: str, path: Path) -> None:
     fig, ax = plt.subplots(figsize=(4.8, 4.6))
     ax.plot([0, 1], [0, 1], color=MUTED, linewidth=1, linestyle="--")
-    for m, color in (("gbm_hl90", SLOTS[0]), ("climatology", SLOTS[1])):
+    for m, color in ((main, SLOTS[0]), ("climatology", SLOTS[1])):
         r = reliability(preds["label"].to_numpy(), preds[f"p_{m}"].to_numpy())
         r = r[r["n"] >= 50]
         ax.plot(
@@ -88,7 +97,7 @@ def reliability_plot(preds: pd.DataFrame, title: str, path: Path) -> None:
             linewidth=2,
             marker="o",
             markersize=5,
-            label=MODEL_LABELS[m],
+            label=label(m),
         )
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
@@ -122,7 +131,7 @@ def regime_plot(panel: pd.DataFrame, region: str, regime_break: pd.Timestamp, pa
     _save(fig, path)
 
 
-def example_plot(preds: pd.DataFrame, region: str, title: str, path: Path) -> None:
+def example_plot(preds: pd.DataFrame, main: str, region: str, title: str, path: Path) -> None:
     g = preds[preds["region"] == region]
     origin = g["origin"].max() - pd.Timedelta(days=7)
     origin = g.loc[g["origin"] <= origin, "origin"].max()
@@ -138,10 +147,10 @@ def example_plot(preds: pd.DataFrame, region: str, title: str, path: Path) -> No
     )
     ax.plot(
         e["target_hour"],
-        e["p_gbm_hl90"],
+        e[f"p_{main}"],
         color=SLOTS[0],
         linewidth=2,
-        label=MODEL_LABELS["gbm_hl90"],
+        label=label(main),
     )
     ax.set_ylim(0, 1.02)
     _style(ax, f"{title} — forecast issued {origin:%Y-%m-%d %H:%M} UTC", "", "probability")
@@ -166,8 +175,13 @@ def _md_table(df: pd.DataFrame) -> str:
 
 
 def build_report(
-    reports_dir: Path, panel: pd.DataFrame, regime_break: pd.Timestamp, meta: dict[str, object]
+    reports_dir: Path,
+    panel: pd.DataFrame,
+    regime_break: pd.Timestamp,
+    meta: dict[str, object],
+    main: str,
 ) -> Path:
+    """`main`: the selected model (highlighted); compared with the first GBM and baselines."""
     fig_dir = reports_dir / "figures"
     fig_dir.mkdir(parents=True, exist_ok=True)
     regime_plot(panel, "kyiv_city", regime_break, fig_dir / "regime_kyiv.png")
@@ -179,27 +193,32 @@ def build_report(
         preds = pd.read_parquet(d / "predictions.parquet")
         info = json.loads((d / "info.json").read_text())
         models = [c[2:] for c in preds.columns if c.startswith("p_")]
-        shown: list[str] = [m for m in ("gbm_hl90", "gbm", "persistence") if m in models]
+        if main not in models:
+            raise ValueError(f"{target}: model {main!r} not in predictions ({models})")
+        first_gbm = [m for m in ("gbm_v1", "gbm") if m in models and m != main][:1]
+        shown: list[str] = [main, *first_gbm, "persistence"]
         skill_by_lead(
             preds,
             shown,
             f"{label}: skill by lead time (dev period, 4 weeks)",
             fig_dir / f"skill_{target}.png",
         )
-        reliability_plot(preds, f"{label}: reliability", fig_dir / f"reliability_{target}.png")
+        reliability_plot(
+            preds, main, f"{label}: reliability", fig_dir / f"reliability_{target}.png"
+        )
         example_plot(
-            preds, "kyiv_city", f"Kyiv, {label.lower()}", fig_dir / f"example_{target}.png"
+            preds, main, "kyiv_city", f"Kyiv, {label.lower()}", fig_dir / f"example_{target}.png"
         )
         preds["lead_bucket"] = lead_bucket(preds["lead"])
         cols = ["model", "brier", "bss", "log_loss", "roc_auc", "pr_auc"]
         overall = score_table(preds, models)[["base_rate", *cols]]
         by_lead = score_table(preds, models, by=["lead_bucket"])
-        by_lead = by_lead[by_lead["model"].isin(["climatology", "persistence", "gbm_hl90"])]
-        by_fold = score_table(preds, ["climatology", "gbm_hl90"], by=["fold"])
-        by_region = score_table(preds, ["gbm_hl90"], by=["region"]).sort_values("bss")
+        by_lead = by_lead[by_lead["model"].isin(["climatology", "persistence", *shown])]
+        by_fold = score_table(preds, ["climatology", main], by=["fold"])
+        by_region = score_table(preds, [main], by=["region"]).sort_values("bss")
         sections.append(
             f"## {label} (`{target}`)\n\n"
-            f"Test origins: {preds['origin'].min():%Y-%m-%d %H:%M} → "
+            f"Evaluation origins: {preds['origin'].min():%Y-%m-%d %H:%M} → "
             f"{preds['origin'].max():%Y-%m-%d %H:%M} UTC · {len(preds):,} scored "
             f"(origin, region, lead) rows · excluded regions: {', '.join(info['excluded'])}\n\n"
             f"### Overall\n\n{_md_table(overall)}\n\n"
@@ -208,7 +227,7 @@ def build_report(
             f"![skill](figures/skill_{target}.png)\n\n"
             f"### By test week (model refit before each week)\n\n"
             f"{_md_table(by_fold[['fold', 'base_rate', *cols]])}\n\n"
-            f"### By region (main model)\n\n"
+            f"### By region (main model: `{main}`)\n\n"
             f"{_md_table(by_region[['region', 'base_rate', 'brier', 'bss', 'roc_auc']])}\n\n"
             f"![reliability](figures/reliability_{target}.png) "
             f"![example](figures/example_{target}.png)\n"

@@ -159,7 +159,7 @@ def evaluate(
 
 
 @app.command()
-def report() -> None:
+def report(main: str = typer.Option(..., help="selected model, e.g. gbm_resid")) -> None:
     """Build reports/REPORT.md and figures from the latest test-phase evaluations."""
     from uaalerts.report.build import build_report
 
@@ -167,7 +167,7 @@ def report() -> None:
     panel = pd.read_parquet(settings.processed_dir / "panel.parquet")
     meta = json.loads((settings.interim_dir / "meta.json").read_text())
     regime_break = pd.Timestamp(cfg.regime_break).tz_convert("UTC")
-    path = build_report(settings.data_dir.parent / "reports", panel, regime_break, meta)
+    path = build_report(settings.data_dir.parent / "reports", panel, regime_break, meta, main)
     typer.echo(f"-> {path}")
 
 
