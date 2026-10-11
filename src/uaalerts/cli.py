@@ -31,6 +31,10 @@ SPECS: dict[str, Spec] = {
     "gbm_resid": Spec("gbm_resid", lambda t: GBM(base="climatology", drop=SEASON_FEATURES)),
     "gbm_trend_season": Spec("gbm_trend_season", lambda t: GBM()),
     "gbm_resid_season": Spec("gbm_resid_season", lambda t: GBM(base="climatology")),
+    "gbm_resid_dark": Spec(
+        "gbm_resid_dark",
+        lambda t: GBM(base="climatology", drop=SEASON_FEATURES - {"sun_elev"}),
+    ),
 }
 
 app = typer.Typer(help="Air raid alert forecasting pipeline.", no_args_is_help=True)
@@ -125,6 +129,7 @@ def evaluate(
     target: str = typer.Option("y_alert", help="y_alert | y_red"),
     phase: str = typer.Option("dev", help="tune | dev | backtest | prospective"),
     models: str = typer.Option("climatology,persistence,gbm", help="comma-separated"),
+    tag: str = typer.Option("", help="suffix for the output folder (separate experiments)"),
 ) -> None:
     """Weekly walk-forward evaluation; writes predictions and metric tables to reports/."""
     settings, cfg = get_settings(), get_config()
@@ -137,7 +142,7 @@ def evaluate(
     panel = pd.read_parquet(settings.processed_dir / "panel.parquet")
     preds, info = run(panel, cfg, target, [SPECS[n] for n in names], phase=phase)
 
-    out_dir = settings.data_dir.parent / "reports" / f"{target}_{phase}"
+    out_dir = settings.data_dir.parent / "reports" / f"{target}_{phase}{'_' + tag if tag else ''}"
     out_dir.mkdir(parents=True, exist_ok=True)
     preds.to_parquet(out_dir / "predictions.parquet", index=False)
     preds["lead_bucket"] = lead_bucket(preds["lead"])
