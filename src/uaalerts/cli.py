@@ -164,7 +164,7 @@ def evaluate(
 
 
 @app.command()
-def report(main: str = typer.Option(..., help="selected model, e.g. gbm_resid")) -> None:
+def report() -> None:
     """Build reports/REPORT.md and figures from the latest test-phase evaluations."""
     from uaalerts.report.build import build_report
 
@@ -172,7 +172,7 @@ def report(main: str = typer.Option(..., help="selected model, e.g. gbm_resid"))
     panel = pd.read_parquet(settings.processed_dir / "panel.parquet")
     meta = json.loads((settings.interim_dir / "meta.json").read_text())
     regime_break = pd.Timestamp(cfg.regime_break).tz_convert("UTC")
-    path = build_report(settings.data_dir.parent / "reports", panel, regime_break, meta, main)
+    path = build_report(settings.data_dir.parent / "reports", panel, regime_break, meta)
     typer.echo(f"-> {path}")
 
 
@@ -191,18 +191,17 @@ def train(target: str = typer.Option("all", help="y_alert | y_red | all")) -> No
 @app.command()
 def forecast(target: str = typer.Option("all", help="y_alert | y_red | all")) -> None:
     """7-day hourly forecast for every region from the latest origin."""
-    from uaalerts.forecast import make_forecast
-    from uaalerts.models.gbm import GBM
+    from uaalerts.forecast import load_final, make_forecast, model_path
 
     settings, cfg = get_settings(), get_config()
     panel = pd.read_parquet(settings.processed_dir / "panel.parquet")
     model_dir = settings.data_dir.parent / "models"
     frames = []
     for t in TARGETS if target == "all" else [target]:
-        path = model_dir / f"{t}_gbm.txt"
+        path = model_path(model_dir, t)
         if not path.exists():
             raise typer.BadParameter(f"no model at {path}; run `uaalerts train` first")
-        frames.append(make_forecast(panel, cfg, t, GBM.load(path)))
+        frames.append(make_forecast(panel, cfg, t, load_final(path)))
     fc = pd.concat(frames, ignore_index=True)
     out = settings.processed_dir / "forecast.parquet"
     fc.to_parquet(out, index=False)
@@ -210,7 +209,7 @@ def forecast(target: str = typer.Option("all", help="y_alert | y_red | all")) ->
     typer.echo(f"origin {origin} UTC, {len(fc):,} rows -> {out}")
     top = (
         fc[(fc["target"] == "y_alert") & (fc["lead"] <= 24) & ~fc["excluded"]]
-        .groupby("region", observed=True)["p_gbm"]
+        .groupby("region", observed=True)["p_main"]
         .max()
         .sort_values(ascending=False)
         .head(8)

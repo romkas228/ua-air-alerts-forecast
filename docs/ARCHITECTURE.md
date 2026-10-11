@@ -152,6 +152,15 @@ data/ (gitignored)     raw/ interim/ processed/
 | M3 ✅ | Hourly panel + targets + EDA notebook/report | plots of seasonality and the regime break |
 | M4 ✅ | `as_of`, features, splits + leakage tests | truncation-invariance tests pass |
 | M5 | Baselines + evaluation harness | metrics table by lead bucket |
-| M6 | LightGBM + training-window experiments | beats climatology in walk-forward (or an honest report) |
+| M6 ✅ | LightGBM + training-window experiments | beats climatology in walk-forward (or an honest report) |
 | M7 ✅ (logger pending) | Report + Streamlit dashboard + siren logger | map + 7-day forecast from "now" |
 | M8 | Text features (Telegram) | ablation: with vs. without text |
+
+## 11. Model selection log (summary; details in CLAUDE.md)
+
+| Round | Period | Result |
+|---|---|---|
+| 1 | tune → test (old) | recency-weighted GBM chosen on tune, worse than climatology on test (BSS −0.05) |
+| 2 | dev (= former test) | trend features + residual-over-climatology GBM: BSS +0.013, ≥ 0 at every lead |
+| 2 | 2-year monthly backtest | `gbm_resid` +0.013 (18/24 months > 0); seasonal features rejected (−0.005; 5/24) |
+| final | prospective (after 2026-10-10 09:00 UTC) | frozen models: `y_alert` → `gbm_resid`, `y_red` → persistence |

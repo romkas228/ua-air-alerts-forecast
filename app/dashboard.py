@@ -18,7 +18,14 @@ from uaalerts.data.regions import REGIONS
 
 st.set_page_config(page_title="Air alert forecast", page_icon="🛡️", layout="wide")
 
-SERIES = {"p_gbm": ("#2a78d6", "LightGBM"), "p_climatology": ("#eb6834", "Climatology (28 d)")}
+SERIES = {
+    "p_main": ("#2a78d6", "Головна модель"),
+    "p_climatology": ("#eb6834", "Кліматологія (28 днів)"),
+}
+MAIN_NAMES = {
+    "gbm_resid": "LightGBM поверх кліматології",
+    "persistence": "«Як зараз» → кліматологія",
+}
 # Sequential blue ramp (dataviz reference palette), light -> dark.
 BLUES = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"]
 NAMES = {r.id: r.name_uk.replace(" область", " обл.") for r in REGIONS}
@@ -57,28 +64,30 @@ if not (settings.processed_dir / "forecast.parquet").exists():
 
 fc = load_forecast()
 meta = load_json("data/interim/meta.json")
-model_meta = load_json("models/y_alert_gbm.json")
+model_meta = load_json("models/y_alert_gbm_resid.json")
 origin = pd.Timestamp(fc["origin"].iloc[0]).tz_convert(TZ)
 data_end = pd.Timestamp(str(meta.get("data_end"))).tz_convert(TZ)
 
 st.title("Прогноз повітряних тривог · 7 днів, погодинно")
 st.caption(
     f"Прогноз від **{origin:%d.%m %H:%M}** (Київ) · дані до **{data_end:%d.%m %H:%M}** · "
-    f"модель `{model_meta.get('git_commit', '?')}`. Ціль — тривога, що покриває обласний "
-    "центр. Модель корисна насамперед на горизонті 1-6 год; далі вона близька до "
-    "кліматології (див. вкладку «Якість»)."
+    f"код моделі `{model_meta.get('git_commit', '?')}`. Ціль — тривога, що покриває "
+    "обласний центр. Модель корисна насамперед на горизонті 1-6 год; далі вона лише трохи "
+    "краща за кліматологію (див. вкладку «Якість»)."
 )
 
 # --- controls (one row) -------------------------------------------------------------
 c1, c2, c3 = st.columns([1.2, 1.2, 1.6])
 target = c1.radio("Ціль", list(TARGETS), format_func=TARGETS.get, horizontal=True)
 model = c2.radio(
-    "Модель", ["p_gbm", "p_climatology"], format_func=lambda m: SERIES[m][1], horizontal=True
+    "Модель", ["p_main", "p_climatology"], format_func=lambda m: SERIES[m][1], horizontal=True
 )
 regions = sorted(fc["region"].unique(), key=lambda r: NAMES[r])
 region = c3.selectbox("Область", regions, index=regions.index("kyiv_city"), format_func=NAMES.get)
 
 f = fc[fc["target"] == target]
+main_name = MAIN_NAMES.get(str(f["main_model"].iloc[0]), str(f["main_model"].iloc[0]))
+st.caption(f"Головна модель для цієї цілі: **{main_name}** (обрана на dev-періоді та бектесті).")
 live = load_live()
 
 tab_now, tab_map, tab_quality = st.tabs(["Огляд", "Теплова карта 7 днів", "Якість моделі"])
@@ -205,12 +214,13 @@ with tab_quality:
     path = root / "reports" / f"{target}_dev" / "metrics_by_lead.csv"
     if path.exists():
         m = pd.read_csv(path)
-        m = m[m["model"].isin(["climatology", "persistence", "gbm"])]
+        m = m[m["model"].isin(["climatology", "persistence", "gbm_v1", "gbm_resid"])]
         st.dataframe(
             m.pivot_table(index="model", columns="lead_bucket", values="bss", sort=False).round(3),
             width="stretch",
         )
-    img = root / "reports" / "figures" / f"skill_{target}.png"
-    if img.exists():
-        st.image(str(img))
+    for name in (f"skill_{target}.png", "backtest_y_alert.png"):
+        img = root / "reports" / "figures" / name
+        if img.exists() and (target == "y_alert" or "backtest" not in name):
+            st.image(str(img))
     st.markdown("Повний звіт: `reports/REPORT.md`.")

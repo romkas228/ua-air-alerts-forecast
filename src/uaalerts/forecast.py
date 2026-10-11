@@ -6,6 +6,7 @@ import json
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Protocol
 
 import numpy as np
 import pandas as pd
@@ -14,11 +15,41 @@ from uaalerts.config import ForecastConfig
 from uaalerts.data.regions import OCCUPIED, REGION_IDS
 from uaalerts.evaluation.splits import excluded_regions, known_at
 from uaalerts.evaluation.walkforward import TRAIN_START, train_leads
-from uaalerts.features.build import MIN_HISTORY_HOURS, make_dataset, make_origins, origin_features
-from uaalerts.models.baselines import Climatology
+from uaalerts.features.build import (
+    MIN_HISTORY_HOURS,
+    SEASON_FEATURES,
+    TARGETS,
+    make_dataset,
+    make_origins,
+    origin_features,
+)
+from uaalerts.models.baselines import Climatology, Persistence
 from uaalerts.models.gbm import GBM
 
 HOUR = pd.Timedelta(hours=1)
+# Final models per target, chosen on the dev period + 2-year backtest (CLAUDE.md, 2026-10-12):
+# y_alert -> LightGBM on top of climatology; y_red -> persistence decaying to climatology
+# (the GBM cannot learn red alerts from a few weeks of history).
+FINAL: dict[str, str] = {"y_alert": "gbm_resid", "y_red": "persistence"}
+FINAL_BASE = "climatology"
+
+
+class Predictor(Protocol):
+    def predict(self, df: pd.DataFrame) -> np.ndarray: ...
+
+
+def model_path(model_dir: Path, target: str) -> Path:
+    return model_dir / f"{target}_{FINAL[target]}.json"
+
+
+def load_final(path: Path) -> Predictor:
+    """Load a saved final model from its json metadata (GBM booster sits next to it)."""
+    meta = json.loads(path.with_suffix(".json").read_text())
+    if meta.get("model") == "persistence":
+        model = Persistence(meta["state_col"])
+        model.tau = float(meta["tau"])
+        return model
+    return GBM.load(path.with_suffix(".txt"), base=meta.get("base"))
 
 
 def _git_commit() -> str:
@@ -41,7 +72,7 @@ def latest_origin(panel: pd.DataFrame, cfg: ForecastConfig) -> pd.Timestamp:
 
 
 def train_final(panel: pd.DataFrame, cfg: ForecastConfig, target: str, model_dir: Path) -> Path:
-    """Fit the GBM on every row whose label is known at the end of the data; save it."""
+    """Fit the target's final model on every row known at the end of the data; save it."""
     regime_break = pd.Timestamp(cfg.regime_break).tz_convert("UTC")
     data_end = panel["hour"].max() + HOUR
     first = max(TRAIN_START, panel["hour"].min() + MIN_HISTORY_HOURS * HOUR + HOUR)
@@ -50,13 +81,18 @@ def train_final(panel: pd.DataFrame, cfg: ForecastConfig, target: str, model_dir
     ofeats = ofeats[~ofeats["region"].isin(OCCUPIED)]
     ds = make_dataset(panel, ofeats, train_leads(cfg.max_lead_hours), target, cfg.timezone)
     ds = ds[known_at(ds, data_end)]
-    model = GBM().fit(ds)
     model_dir.mkdir(parents=True, exist_ok=True)
-    path = model_dir / f"{target}_gbm.txt"
-    model.save(path)
-    meta = {
-        "target": target,
-        "model": "gbm",
+    path = model_path(model_dir, target)
+    meta: dict[str, object] = {"target": target, "model": FINAL[target]}
+    if FINAL[target] == "persistence":
+        state = f"{TARGETS[target]}_active_now"
+        pers = Persistence(state).fit(ds)
+        meta |= {"state_col": state, "tau": pers.tau}
+    else:
+        gbm = GBM(base=FINAL_BASE, drop=SEASON_FEATURES).fit(ds)
+        gbm.save(path.with_suffix(".txt"))
+        meta["base"] = FINAL_BASE
+    meta |= {
         "trained_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "data_end": data_end.isoformat(),
         "train_rows": len(ds),
@@ -67,7 +103,7 @@ def train_final(panel: pd.DataFrame, cfg: ForecastConfig, target: str, model_dir
 
 
 def make_forecast(
-    panel: pd.DataFrame, cfg: ForecastConfig, target: str, model: GBM
+    panel: pd.DataFrame, cfg: ForecastConfig, target: str, model: Predictor
 ) -> pd.DataFrame:
     """Probabilities for every region and lead 1..168 from the latest origin."""
     regime_break = pd.Timestamp(cfg.regime_break).tz_convert("UTC")
@@ -84,7 +120,8 @@ def make_forecast(
         | OCCUPIED
     )
     out = ds[["origin", "region", "lead", "target_hour", "label"]].copy()
-    out["p_gbm"] = model.predict(ds)
+    out["p_main"] = model.predict(ds)
+    out["main_model"] = FINAL[target]
     out["p_climatology"] = Climatology().predict(ds)
     out["target"] = target
     out["excluded"] = out["region"].isin(excluded)

@@ -1,0 +1,137 @@
+{
+  "excluded": [
+    "crimea",
+    "luhanska"
+  ],
+  "folds": [
+    "bt-2024-09",
+    "bt-2024-10",
+    "bt-2024-11",
+    "bt-2024-12",
+    "bt-2025-01",
+    "bt-2025-02",
+    "bt-2025-03",
+    "bt-2025-04",
+    "bt-2025-05",
+    "bt-2025-06",
+    "bt-2025-07",
+    "bt-2025-08",
+    "bt-2025-09",
+    "bt-2025-10",
+    "bt-2025-11",
+    "bt-2025-12",
+    "bt-2026-01",
+    "bt-2026-02",
+    "bt-2026-03",
+    "bt-2026-04",
+    "bt-2026-05",
+    "bt-2026-06",
+    "bt-2026-07",
+    "bt-2026-08"
+  ],
+  "excluded_per_fold": {
+    "bt-2024-09": [
+      "crimea",
+      "luhanska"
+    ],
+    "bt-2024-10": [
+      "crimea",
+      "luhanska"
+    ],
+    "bt-2024-11": [
+      "crimea",
+      "luhanska"
+    ],
+    "bt-2024-12": [
+      "crimea",
+      "luhanska"
+    ],
+    "bt-2025-01": [
+      "crimea",
+      "luhanska"
+    ],
+    "bt-2025-02": [
+      "crimea",
+      "luhanska"
+    ],
+    "bt-2025-03": [
+      "crimea",
+      "luhanska"
+    ],
+    "bt-2025-04": [
+      "crimea",
+      "luhanska"
+    ],
+    "bt-2025-05": [
+      "crimea",
+      "luhanska"
+    ],
+    "bt-2025-06": [
+      "crimea",
+      "luhanska"
+    ],
+    "bt-2025-07": [
+      "crimea",
+      "luhanska"
+    ],
+    "bt-2025-08": [
+      "crimea",
+      "luhanska"
+    ],
+    "bt-2025-09": [
+      "crimea",
+      "luhanska"
+    ],
+    "bt-2025-10": [
+      "crimea",
+      "luhanska"
+    ],
+    "bt-2025-11": [
+      "crimea",
+      "luhanska"
+    ],
+    "bt-2025-12": [
+      "crimea",
+      "donetska",
+      "luhanska"
+    ],
+    "bt-2026-01": [
+      "crimea",
+      "luhanska"
+    ],
+    "bt-2026-02": [
+      "crimea",
+      "luhanska"
+    ],
+    "bt-2026-03": [
+      "crimea",
+      "donetska",
+      "luhanska"
+    ],
+    "bt-2026-04": [
+      "crimea",
+      "donetska",
+      "luhanska"
+    ],
+    "bt-2026-05": [
+      "crimea",
+      "luhanska"
+    ],
+    "bt-2026-06": [
+      "crimea",
+      "luhanska"
+    ],
+    "bt-2026-07": [
+      "crimea",
+      "donetska",
+      "luhanska",
+      "zaporizka"
+    ],
+    "bt-2026-08": [
+      "crimea",
+      "donetska",
+      "luhanska",
+      "zaporizka"
+    ]
+  }
+}

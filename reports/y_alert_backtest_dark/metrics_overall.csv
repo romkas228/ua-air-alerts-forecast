@@ -1,0 +1,3 @@
+model,n,base_rate,brier,log_loss,roc_auc,pr_auc,bss
+climatology,11628288.0,0.2617,0.1238,0.4394,0.858,0.7119,0.0
+gbm_resid_dark,11628288.0,0.2617,0.1224,0.3862,0.8633,0.7272,0.0118

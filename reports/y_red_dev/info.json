@@ -8,5 +8,23 @@
     "dev-w2",
     "dev-w3",
     "dev-w4"
-  ]
+  ],
+  "excluded_per_fold": {
+    "dev-w1": [
+      "crimea",
+      "luhanska"
+    ],
+    "dev-w2": [
+      "crimea",
+      "luhanska"
+    ],
+    "dev-w3": [
+      "crimea",
+      "luhanska"
+    ],
+    "dev-w4": [
+      "crimea",
+      "luhanska"
+    ]
+  }
 }
