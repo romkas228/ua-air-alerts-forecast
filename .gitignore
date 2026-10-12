@@ -26,3 +26,4 @@ data/processed/
 # Evaluation outputs: metrics are committed, predictions are not
 reports/*/predictions.parquet
 .logs/
+ai-log-*.txt
