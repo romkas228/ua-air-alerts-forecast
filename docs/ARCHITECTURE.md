@@ -5,7 +5,7 @@ Status: **agreed** (stage 2), updated with stage-3 findings. Decisions log lives
 ## 1. Problem statement
 
 At a forecast origin `t` (every 6 h: 00/06/12/18 Europe/Kyiv) predict, for every region `r`
-and every lead `h ∈ 1..168`, the probability that the hour `[t+h-1, t+h)` contains an alert
+and every lead `h ∈ 1..168` (but **shown as a forecast only for h ≤ 6**, red ≤ 2; see §11), the probability that the hour `[t+h-1, t+h)` contains an alert
 **covering the oblast's administrative centre**:
 
 - **`y_alert`** (primary): an air-raid alert of any level that covers the centre. That means an
@@ -163,4 +163,6 @@ data/ (gitignored)     raw/ interim/ processed/
 | 1 | tune → test (old) | recency-weighted GBM chosen on tune, worse than climatology on test (BSS −0.05) |
 | 2 | dev (= former test) | trend features + residual-over-climatology GBM: BSS +0.013, ≥ 0 at every lead |
 | 2 | 2-year monthly backtest | `gbm_resid` +0.013 (18/24 months > 0); seasonal features rejected (−0.005; 5/24) |
-| final | prospective (after 2026-10-10 09:00 UTC) | frozen models: `y_alert` → `gbm_resid`, `y_red` → persistence |
+| 3 | dev + backtest, per-lead bootstrap CI | useful horizon: 6 h (any level), 2 h (red) → forecast cut to that; the rest of the week is shown as climatology |
+| 3 | dev + backtest | `gbm_resid_short` (trained on leads ≤ 12 h) better at 1–6 h in 21/24 months |
+| final | prospective (after 2026-10-10 09:00 UTC) | frozen (`freeze-v2`): `y_alert` → `gbm_resid_short`, `y_red` → persistence |

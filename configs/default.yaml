@@ -2,6 +2,12 @@
 timezone: Europe/Kyiv
 origin_hours: [0, 6, 12, 18]   # local Kyiv time
 max_lead_hours: 168
+# Horizon over which the model is meaningfully better than climatology (bootstrap CI > 0 on
+# the backtest and dev period, see reports/REPORT.md). Only this part is shown as a forecast;
+# the rest of the 7 days is shown as the typical (climatological) alert pattern.
+useful_lead_hours:
+  y_alert: 6
+  y_red: 2
 lead_buckets:                  # inclusive lead ranges for reporting
   "1-6h": [1, 6]
   "7-24h": [7, 24]

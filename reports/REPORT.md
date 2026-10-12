@@ -27,6 +27,7 @@ Evaluation origins: 2026-09-12 09:00 → 2026-10-10 03:00 UTC · 364,056 scored 
 | 0.420 | gbm_resid | 0.161 | 0.013 | 0.486 | 0.841 | 0.780 |
 | 0.420 | gbm_trend_season | 0.163 | 0.004 | 0.490 | 0.840 | 0.780 |
 | 0.420 | gbm_resid_season | 0.163 | -0.001 | 0.493 | 0.838 | 0.777 |
+| 0.420 | gbm_resid_short | 0.162 | 0.007 | 0.488 | 0.839 | 0.779 |
 
 ### By lead time
 
@@ -36,18 +37,22 @@ Evaluation origins: 2026-09-12 09:00 → 2026-10-10 03:00 UTC · 364,056 scored 
 | 1-6h | 0.416 | persistence | 0.150 | 0.081 | 0.495 | 0.873 | 0.831 |
 | 1-6h | 0.416 | gbm_v1 | 0.141 | 0.134 | 0.431 | 0.876 | 0.840 |
 | 1-6h | 0.416 | gbm_resid | 0.140 | 0.138 | 0.430 | 0.877 | 0.838 |
+| 1-6h | 0.416 | gbm_resid_short | 0.137 | 0.159 | 0.419 | 0.882 | 0.847 |
 | 7-24h | 0.414 | climatology | 0.161 | 0.000 | 0.544 | 0.844 | 0.779 |
 | 7-24h | 0.414 | persistence | 0.161 | 0.001 | 0.539 | 0.845 | 0.788 |
 | 7-24h | 0.414 | gbm_v1 | 0.160 | 0.008 | 0.484 | 0.842 | 0.786 |
 | 7-24h | 0.414 | gbm_resid | 0.158 | 0.020 | 0.480 | 0.845 | 0.787 |
+| 7-24h | 0.414 | gbm_resid_short | 0.157 | 0.024 | 0.477 | 0.847 | 0.789 |
 | 1-3d | 0.417 | climatology | 0.161 | 0.000 | 0.534 | 0.847 | 0.781 |
 | 1-3d | 0.417 | persistence | 0.161 | 0.000 | 0.534 | 0.847 | 0.789 |
 | 1-3d | 0.417 | gbm_v1 | 0.161 | -0.002 | 0.485 | 0.841 | 0.779 |
 | 1-3d | 0.417 | gbm_resid | 0.159 | 0.010 | 0.482 | 0.844 | 0.780 |
+| 1-3d | 0.417 | gbm_resid_short | 0.159 | 0.013 | 0.480 | 0.844 | 0.782 |
 | 4-7d | 0.424 | climatology | 0.165 | 0.000 | 0.547 | 0.844 | 0.781 |
 | 4-7d | 0.424 | persistence | 0.165 | 0.000 | 0.547 | 0.844 | 0.781 |
 | 4-7d | 0.424 | gbm_v1 | 0.167 | -0.010 | 0.496 | 0.832 | 0.768 |
 | 4-7d | 0.424 | gbm_resid | 0.164 | 0.003 | 0.493 | 0.836 | 0.774 |
+| 4-7d | 0.424 | gbm_resid_short | 0.167 | -0.011 | 0.501 | 0.831 | 0.770 |
 
 ![skill](figures/skill_y_alert.png)
 
@@ -56,40 +61,40 @@ Evaluation origins: 2026-09-12 09:00 → 2026-10-10 03:00 UTC · 364,056 scored 
 | fold | base_rate | model | brier | bss | log_loss | roc_auc | pr_auc |
 |---|---|---|---|---|---|---|---|
 | dev-w1 | 0.416 | climatology | 0.168 | 0.000 | 0.594 | 0.852 | 0.778 |
-| dev-w1 | 0.416 | gbm_resid | 0.157 | 0.063 | 0.476 | 0.851 | 0.783 |
+| dev-w1 | 0.416 | gbm_resid_short | 0.158 | 0.059 | 0.477 | 0.848 | 0.776 |
 | dev-w2 | 0.438 | climatology | 0.163 | 0.000 | 0.539 | 0.855 | 0.803 |
-| dev-w2 | 0.438 | gbm_resid | 0.159 | 0.026 | 0.480 | 0.851 | 0.808 |
+| dev-w2 | 0.438 | gbm_resid_short | 0.154 | 0.059 | 0.465 | 0.858 | 0.816 |
 | dev-w3 | 0.378 | climatology | 0.146 | 0.000 | 0.452 | 0.860 | 0.789 |
-| dev-w3 | 0.378 | gbm_resid | 0.156 | -0.068 | 0.466 | 0.859 | 0.789 |
+| dev-w3 | 0.378 | gbm_resid_short | 0.159 | -0.089 | 0.473 | 0.858 | 0.791 |
 | dev-w4 | 0.476 | climatology | 0.186 | 0.000 | 0.627 | 0.811 | 0.778 |
-| dev-w4 | 0.476 | gbm_resid | 0.181 | 0.027 | 0.553 | 0.822 | 0.798 |
+| dev-w4 | 0.476 | gbm_resid_short | 0.191 | -0.023 | 0.586 | 0.816 | 0.788 |
 
-### By region (main model: `gbm_resid`)
+### By region (main model: `gbm_resid_short`)
 
 | region | base_rate | brier | bss | roc_auc |
 |---|---|---|---|---|
-| lvivska | 0.007 | 0.010 | -0.296 | 0.337 |
-| ivano_frankivska | 0.029 | 0.031 | -0.070 | 0.322 |
-| zakarpatska | 0.004 | 0.005 | -0.070 | 0.339 |
-| sumska | 0.916 | 0.080 | -0.033 | 0.623 |
-| chernivetska | 0.036 | 0.037 | -0.024 | 0.437 |
-| ternopilska | 0.094 | 0.090 | -0.019 | 0.464 |
-| khersonska | 0.230 | 0.195 | -0.017 | 0.543 |
-| cherkaska | 0.605 | 0.277 | -0.012 | 0.469 |
-| kirovohradska | 0.580 | 0.258 | -0.010 | 0.482 |
-| khmelnytska | 0.191 | 0.163 | -0.009 | 0.471 |
-| kharkivska | 0.891 | 0.100 | -0.006 | 0.551 |
-| rivnenska | 0.243 | 0.195 | -0.003 | 0.496 |
-| volynska | 0.117 | 0.106 | 0.005 | 0.503 |
-| dnipropetrovska | 0.507 | 0.256 | 0.005 | 0.520 |
-| mykolaivska | 0.743 | 0.210 | 0.010 | 0.523 |
-| poltavska | 0.740 | 0.215 | 0.015 | 0.498 |
-| zhytomyrska | 0.386 | 0.250 | 0.028 | 0.497 |
-| kyiv_city | 0.625 | 0.264 | 0.034 | 0.540 |
-| vinnytska | 0.264 | 0.199 | 0.038 | 0.543 |
-| kyivska | 0.587 | 0.274 | 0.053 | 0.460 |
-| odeska | 0.499 | 0.260 | 0.056 | 0.519 |
-| chernihivska | 0.946 | 0.072 | 0.060 | 0.620 |
+| lvivska | 0.007 | 0.010 | -0.341 | 0.379 |
+| khersonska | 0.230 | 0.210 | -0.094 | 0.531 |
+| zakarpatska | 0.004 | 0.005 | -0.079 | 0.349 |
+| ivano_frankivska | 0.029 | 0.031 | -0.062 | 0.332 |
+| kirovohradska | 0.580 | 0.266 | -0.040 | 0.455 |
+| chernivetska | 0.036 | 0.038 | -0.039 | 0.475 |
+| sumska | 0.916 | 0.079 | -0.019 | 0.622 |
+| dnipropetrovska | 0.507 | 0.261 | -0.014 | 0.494 |
+| kharkivska | 0.891 | 0.100 | -0.009 | 0.537 |
+| rivnenska | 0.243 | 0.196 | -0.007 | 0.509 |
+| ternopilska | 0.094 | 0.089 | -0.005 | 0.505 |
+| khmelnytska | 0.191 | 0.162 | -0.004 | 0.497 |
+| volynska | 0.117 | 0.107 | -0.002 | 0.511 |
+| kyiv_city | 0.625 | 0.271 | 0.008 | 0.546 |
+| vinnytska | 0.264 | 0.203 | 0.015 | 0.506 |
+| zhytomyrska | 0.386 | 0.250 | 0.028 | 0.524 |
+| mykolaivska | 0.743 | 0.206 | 0.029 | 0.530 |
+| poltavska | 0.740 | 0.211 | 0.031 | 0.496 |
+| cherkaska | 0.605 | 0.265 | 0.032 | 0.485 |
+| kyivska | 0.587 | 0.277 | 0.045 | 0.461 |
+| odeska | 0.499 | 0.260 | 0.057 | 0.520 |
+| chernihivska | 0.946 | 0.069 | 0.088 | 0.575 |
 
 ![reliability](figures/reliability_y_alert.png) ![example](figures/example_y_alert.png)
 
@@ -173,6 +178,63 @@ Evaluation origins: 2026-09-12 09:00 → 2026-10-10 03:00 UTC · 397,152 scored 
 
 ![reliability](figures/reliability_y_red.png) ![example](figures/example_y_red.png)
 
+## Useful forecast horizon
+
+Skill vs climatology per lead time with a 95% bootstrap interval (resampling whole forecast days). The forecast is shown only where the interval is clearly above zero in both the backtest and the dev period; beyond that the dashboard shows the typical (climatological) pattern, explicitly labelled as not a forecast.
+
+### Alert of any level (`y_alert`, model `gbm_resid_short`) → forecast horizon **6 h**
+
+![horizon](figures/horizon_y_alert.png)
+
+| period | lead, h | bss | 95% CI |
+|---|---|---|---|
+| 2-year backtest | 1-1 | 0.531 | +0.511 … +0.549 |
+| 2-year backtest | 2-2 | 0.143 | +0.131 … +0.155 |
+| 2-year backtest | 3-3 | 0.070 | +0.061 … +0.080 |
+| 2-year backtest | 4-4 | 0.046 | +0.037 … +0.055 |
+| 2-year backtest | 5-6 | 0.033 | +0.025 … +0.040 |
+| 2-year backtest | 7-9 | 0.011 | +0.005 … +0.018 |
+| 2-year backtest | 10-12 | 0.012 | +0.006 … +0.018 |
+| 2-year backtest | 13-18 | 0.007 | +0.001 … +0.013 |
+| 2-year backtest | 19-24 | 0.004 | -0.002 … +0.010 |
+| 2-year backtest | 25-36 | 0.003 | -0.002 … +0.009 |
+| 2-year backtest | 37-48 | 0.001 | -0.003 … +0.007 |
+| 2-year backtest | 49-72 | -0.003 | -0.008 … +0.002 |
+| 2-year backtest | 73-168 | -0.003 | -0.006 … +0.000 |
+| dev period, 4 weeks | 1-1 | 0.476 | +0.416 … +0.541 |
+| dev period, 4 weeks | 2-2 | 0.150 | +0.076 … +0.214 |
+| dev period, 4 weeks | 3-3 | 0.079 | +0.027 … +0.129 |
+| dev period, 4 weeks | 4-4 | 0.113 | +0.065 … +0.156 |
+| dev period, 4 weeks | 5-6 | 0.061 | +0.025 … +0.097 |
+| dev period, 4 weeks | 7-9 | 0.053 | +0.011 … +0.084 |
+| dev period, 4 weeks | 10-12 | 0.037 | +0.006 … +0.064 |
+| dev period, 4 weeks | 13-18 | 0.020 | -0.022 … +0.052 |
+| dev period, 4 weeks | 19-24 | 0.006 | -0.034 … +0.040 |
+| dev period, 4 weeks | 25-36 | 0.027 | -0.015 … +0.062 |
+| dev period, 4 weeks | 37-48 | 0.008 | -0.034 … +0.048 |
+| dev period, 4 weeks | 49-72 | 0.008 | -0.033 … +0.048 |
+| dev period, 4 weeks | 73-168 | -0.011 | -0.053 … +0.029 |
+
+### Red-level alert (`y_red`, model `persistence`) → forecast horizon **2 h**
+
+![horizon](figures/horizon_y_red.png)
+
+| period | lead, h | bss | 95% CI |
+|---|---|---|---|
+| dev period, 4 weeks | 1-1 | 0.669 | +0.533 … +0.797 |
+| dev period, 4 weeks | 2-2 | 0.113 | +0.001 … +0.243 |
+| dev period, 4 weeks | 3-3 | -0.100 | -0.210 … +0.008 |
+| dev period, 4 weeks | 4-4 | -0.094 | -0.220 … +0.025 |
+| dev period, 4 weeks | 5-6 | -0.013 | -0.082 … +0.061 |
+| dev period, 4 weeks | 7-9 | -0.034 | -0.084 … +0.013 |
+| dev period, 4 weeks | 10-12 | -0.029 | -0.084 … +0.028 |
+| dev period, 4 weeks | 13-18 | -0.013 | -0.039 … +0.012 |
+| dev period, 4 weeks | 19-24 | 0.001 | -0.018 … +0.019 |
+| dev period, 4 weeks | 25-36 | 0.007 | -0.002 … +0.017 |
+| dev period, 4 weeks | 37-48 | 0.003 | +0.000 … +0.006 |
+| dev period, 4 weeks | 49-72 | 0.002 | +0.001 … +0.004 |
+| dev period, 4 weeks | 73-168 | 0.000 | +0.000 … +0.000 |
+
 ## Two-year monthly backtest (`y_alert`)
 
 Monthly refits from 2024-09 to 2026-08 (24 folds, two winters, all before the 2026-09-06 reform). Used to decide on seasonal features, which a 4-week dev period cannot judge.
@@ -186,6 +248,7 @@ Monthly refits from 2024-09 to 2026-08 (24 folds, two winters, all before the 20
 | gbm_resid | 0.262 | 0.122 | 0.013 | 0.864 | 0.728 |
 | gbm_resid_season | 0.262 | 0.124 | -0.005 | 0.858 | 0.720 |
 | gbm_resid_dark | 0.262 | 0.122 | 0.012 | 0.863 | 0.727 |
+| gbm_resid_short | 0.262 | 0.123 | 0.004 | 0.861 | 0.725 |
 
 ### Brier skill score by lead time
 
@@ -195,9 +258,10 @@ Monthly refits from 2024-09 to 2026-08 (24 folds, two winters, all before the 20
 | gbm_resid | 0.133 | 0.011 | 0.009 | 0.008 |
 | gbm_resid_dark | 0.128 | 0.010 | 0.008 | 0.007 |
 | gbm_resid_season | 0.087 | -0.009 | -0.009 | -0.008 |
+| gbm_resid_short | 0.144 | 0.007 | -0.000 | -0.003 |
 | persistence | 0.111 | 0.001 | 0.000 | 0.000 |
 
-Months with skill > 0: `gbm_resid` 18/24, `gbm_resid_dark` 17/24, `gbm_resid_season` 14/24, `persistence` 24/24
+Months with skill > 0: `gbm_resid` 18/24, `gbm_resid_dark` 17/24, `gbm_resid_season` 14/24, `gbm_resid_short` 17/24, `persistence` 24/24
 
 ![backtest](figures/backtest_y_alert.png)
 
@@ -205,7 +269,7 @@ Months with skill > 0: `gbm_resid` 18/24, `gbm_resid_dark` 17/24, `gbm_resid_sea
 
 ## Limitations
 
-- Real skill is concentrated in the first 6 hours (+13% Brier vs climatology); beyond a day the model is only marginally better than the 28-day hour-of-day climatology.
+- Real skill is concentrated in the first hours (see *Useful forecast horizon*); the operational forecast is therefore limited to 6 h (any level) and 2 h (red). The original 7-day horizon from the project plan was cut after measuring it.
 - Trend features over-react to bursts: after the spikes of 24.09 and 30.09 the model expected escalation, but 01-03.10 were calm (dev week 3).
 - The red-level target has only weeks of history.
 - The target counts hours under alert, not the scale or damage of an attack.

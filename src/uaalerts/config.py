@@ -22,6 +22,7 @@ class ForecastConfig(BaseModel):
     timezone: str
     origin_hours: list[int]
     max_lead_hours: int
+    useful_lead_hours: dict[str, int]
     lead_buckets: dict[str, tuple[int, int]]
     test_weeks: int
     tune_weeks: int

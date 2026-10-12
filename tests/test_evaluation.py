@@ -95,3 +95,43 @@ def test_persistence_decays_to_climatology() -> None:
     p = m.predict(df)
     assert p[0] > 0.8 and abs(p[1] - 0.2) < 1e-6
     assert (Climatology().predict(df) == 0.2).all()
+
+
+def test_skill_ci_by_lead_brackets_the_point_estimate() -> None:
+    from uaalerts.evaluation.metrics import skill_ci_by_lead
+
+    rng = np.random.default_rng(1)
+    n = 6000
+    origin = pd.Timestamp("2026-01-01", tz=UTC) + pd.to_timedelta(rng.integers(0, 30, n), "D")
+    lead = rng.integers(1, 169, n)
+    y = rng.uniform(size=n) < 0.3
+    good = np.where(lead <= 6, np.where(y, 0.8, 0.1), 0.3)  # skilful only at short leads
+    df = pd.DataFrame(
+        {
+            "origin": origin,
+            "lead": lead,
+            "label": y.astype(float),
+            "p_x": good,
+            "p_climatology": 0.3,
+        }
+    )
+    t = skill_ci_by_lead(df, "x", n_boot=200)
+    assert (t["ci_low"] <= t["bss"]).all() and (t["bss"] <= t["ci_high"]).all()
+    assert t.loc[t["lead_to"] <= 6, "ci_low"].min() > 0.3
+    assert t.loc[t["lead_from"] > 6, "bss"].abs().max() < 1e-9
+
+
+def test_skill_ci_by_lead_ignores_leads_outside_bins() -> None:
+    from uaalerts.evaluation.metrics import skill_ci_by_lead
+
+    df = pd.DataFrame(
+        {
+            "origin": pd.Timestamp("2026-01-01", tz=UTC),
+            "lead": [1, 2, 30],
+            "label": [1.0, 0.0, 1.0],
+            "p_x": [0.9, 0.1, 0.5],
+            "p_climatology": 0.5,
+        }
+    )
+    t = skill_ci_by_lead(df, "x", bins=[0, 1, 2], n_boot=10)
+    assert t["lead_to"].tolist() == [1, 2]

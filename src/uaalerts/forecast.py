@@ -30,7 +30,10 @@ HOUR = pd.Timedelta(hours=1)
 # Final models per target, chosen on the dev period + 2-year backtest (CLAUDE.md, 2026-10-12):
 # y_alert -> LightGBM on top of climatology; y_red -> persistence decaying to climatology
 # (the GBM cannot learn red alerts from a few weeks of history).
-FINAL: dict[str, str] = {"y_alert": "gbm_resid", "y_red": "persistence"}
+# y_alert model is trained on leads <= 12 h only (2026-10-12: better at 1-6 h in 21/24
+# backtest months); beyond the useful horizon the dashboard shows climatology anyway.
+FINAL: dict[str, str] = {"y_alert": "gbm_resid_short", "y_red": "persistence"}
+SHORT_MAX_TRAIN_LEAD = 12
 FINAL_BASE = "climatology"
 
 
@@ -89,6 +92,9 @@ def train_final(panel: pd.DataFrame, cfg: ForecastConfig, target: str, model_dir
         pers = Persistence(state).fit(ds)
         meta |= {"state_col": state, "tau": pers.tau}
     else:
+        if FINAL[target].endswith("_short"):
+            ds = ds[ds["lead"] <= SHORT_MAX_TRAIN_LEAD]
+            meta["max_train_lead"] = SHORT_MAX_TRAIN_LEAD
         gbm = GBM(base=FINAL_BASE, drop=SEASON_FEATURES).fit(ds)
         gbm.save(path.with_suffix(".txt"))
         meta["base"] = FINAL_BASE

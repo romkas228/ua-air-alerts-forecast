@@ -15,7 +15,13 @@ from matplotlib.axes import Axes
 from matplotlib.dates import date2num
 from matplotlib.figure import Figure
 
-from uaalerts.evaluation.metrics import brier, lead_bucket, reliability, score_table
+from uaalerts.evaluation.metrics import (
+    brier,
+    lead_bucket,
+    reliability,
+    score_table,
+    skill_ci_by_lead,
+)
 
 # Reference categorical palette (dataviz skill, light mode), fixed slot order.
 SURFACE = "#fcfcfb"
@@ -26,6 +32,7 @@ MUTED = "#b9b8b2"
 SLOTS = ["#2a78d6", "#eb6834", "#1baf7a"]
 MODEL_LABELS = {
     "gbm_resid": "LightGBM on top of climatology",
+    "gbm_resid_short": "LightGBM on top of climatology, trained on 1-12 h",
     "gbm_resid_season": "LightGBM on top of climatology + season",
     "gbm_trend": "LightGBM + trend features",
     "gbm_trend_season": "LightGBM + trend + season",
@@ -165,6 +172,105 @@ def example_plot(preds: pd.DataFrame, main: str, region: str, title: str, path: 
     _save(fig, path)
 
 
+KEYS = ["origin", "region", "lead"]
+
+
+def load_preds(reports_dir: Path, target: str, phase: str) -> pd.DataFrame | None:
+    """Predictions of a phase merged with tagged runs of the same phase (extra models)."""
+    base = reports_dir / f"{target}_{phase}" / "predictions.parquet"
+    if not base.exists():
+        return None
+    preds = pd.read_parquet(base)
+    for extra in sorted(reports_dir.glob(f"{target}_{phase}_*/predictions.parquet")):
+        more = pd.read_parquet(extra)
+        new = [c for c in more.columns if c.startswith("p_") and c not in preds.columns]
+        if new:
+            preds = preds.merge(more[KEYS + new], on=KEYS, how="inner")
+    return preds
+
+
+def horizon_plot(tables: dict[str, pd.DataFrame], useful: int, title: str, path: Path) -> None:
+    """BSS with 95% CI per lead bin; the forecast zone (lead <= useful) is shaded."""
+    fig, ax = plt.subplots(figsize=(8, 4.2))
+    ax.axvspan(0.5, useful + 0.5, color=SLOTS[0], alpha=0.08, linewidth=0)
+    ax.text(
+        useful + 0.6,
+        0.98,
+        f" forecast zone: 1-{useful} h",
+        color=TEXT_2,
+        fontsize=9,
+        va="top",
+        transform=ax.get_xaxis_transform(),
+    )
+    ax.axhline(0, color=TEXT_2, linewidth=1)
+    for (name, t), color in zip(tables.items(), SLOTS, strict=False):
+        x = np.sqrt(t["lead_from"] * t["lead_to"])  # geometric bin centre (log axis)
+        ax.errorbar(
+            x,
+            t["bss"],
+            yerr=[t["bss"] - t["ci_low"], t["ci_high"] - t["bss"]],
+            color=color,
+            linewidth=2,
+            marker="o",
+            markersize=5,
+            capsize=3,
+            label=name,
+        )
+    ax.set_xscale("log")
+    ax.set_xticks([1, 2, 3, 6, 12, 24, 48, 96, 168])
+    ax.set_xticklabels(["1", "2", "3", "6", "12", "24", "48", "96", "168"])
+    _style(ax, title, "lead time, hours (log scale)", "Brier skill score vs climatology")
+    ax.legend(frameon=False, labelcolor=TEXT, fontsize=9, loc="upper right")
+    _save(fig, path)
+
+
+def horizon_section(
+    reports_dir: Path, fig_dir: Path, useful: dict[str, int], final: dict[str, str]
+) -> str:
+    out = [
+        "## Useful forecast horizon\n\n"
+        "Skill vs climatology per lead time with a 95% bootstrap interval (resampling whole "
+        "forecast days). The forecast is shown only where the interval is clearly above zero "
+        "in both the backtest and the dev period; beyond that the dashboard shows the typical "
+        "(climatological) pattern, explicitly labelled as not a forecast.\n"
+    ]
+    for target, label_ in (("y_alert", "Alert of any level"), ("y_red", "Red-level alert")):
+        main = final[target]
+        tables: dict[str, pd.DataFrame] = {}
+        for phase, name in (("backtest", "2-year backtest"), ("dev", "dev period, 4 weeks")):
+            preds = load_preds(reports_dir, target, phase)
+            if preds is None or f"p_{main}" not in preds.columns:
+                continue
+            t = skill_ci_by_lead(preds, main)
+            t.round(4).to_csv(reports_dir / f"useful_horizon_{target}_{phase}.csv", index=False)
+            tables[name] = t
+        if not tables:
+            continue
+        horizon_plot(
+            tables,
+            useful[target],
+            f"{label_}: skill by lead time ({main})",
+            fig_dir / f"horizon_{target}.png",
+        )
+        rows = []
+        for name, t in tables.items():
+            for r in t.itertuples():
+                rows.append(
+                    {
+                        "period": name,
+                        "lead, h": f"{r.lead_from}-{r.lead_to}",
+                        "bss": r.bss,
+                        "95% CI": f"{r.ci_low:+.3f} … {r.ci_high:+.3f}",
+                    }
+                )
+        out.append(
+            f"### {label_} (`{target}`, model `{main}`) → forecast horizon "
+            f"**{useful[target]} h**\n\n![horizon](figures/horizon_{target}.png)\n\n"
+            f"{_md_table(pd.DataFrame(rows))}\n"
+        )
+    return "\n".join(out)
+
+
 def backtest_plot(by_fold: pd.DataFrame, models: list[str], path: Path) -> None:
     w = by_fold.pivot_table(index="fold", columns="model", values="bss")
     x = pd.to_datetime(w.index.str.replace("bt-", "") + "-01")
@@ -187,7 +293,7 @@ def backtest_section(reports_dir: Path, main: str, fig_dir: Path) -> str:
     for extra in sorted(reports_dir.glob("y_alert_backtest_*")):
         for name, frame in (("by_lead", by_lead), ("by_fold", by_fold), ("overall", overall)):
             more = pd.read_csv(extra / f"metrics_{name}.csv")
-            more = more[more["model"] != "climatology"]
+            more = more[~more["model"].isin(set(frame["model"]))]  # first run wins
             merged = pd.concat([frame, more], ignore_index=True)
             if name == "by_lead":
                 by_lead = merged
@@ -234,6 +340,7 @@ def build_report(
     panel: pd.DataFrame,
     regime_break: pd.Timestamp,
     meta: dict[str, object],
+    useful: dict[str, int],
 ) -> Path:
     """The final model of each target (forecast.FINAL) is highlighted against baselines."""
     from uaalerts.forecast import FINAL
@@ -244,15 +351,16 @@ def build_report(
     sections = []
     for target, label in (("y_alert", "Alert of any level"), ("y_red", "Red-level alert")):
         d = reports_dir / f"{target}_dev"
-        if not (d / "predictions.parquet").exists():
+        loaded = load_preds(reports_dir, target, "dev")
+        if loaded is None:
             continue
-        preds = pd.read_parquet(d / "predictions.parquet")
+        preds = loaded
         info = json.loads((d / "info.json").read_text())
         models = [c[2:] for c in preds.columns if c.startswith("p_")]
         main = FINAL[target]
         if main not in models:
             raise ValueError(f"{target}: model {main!r} not in predictions ({models})")
-        others = [m for m in ("gbm_v1", "gbm_resid", "persistence") if m in models and m != main]
+        others = [m for m in ("gbm_resid", "gbm_v1", "persistence") if m in models and m != main]
         shown: list[str] = [main, *others][:3]
         skill_by_lead(
             preds,
@@ -308,11 +416,13 @@ def build_report(
         "roughly quadrupled alert time in Kyiv; the whole test period lies after it.\n\n"
         + "\n".join(sections)
     )
+    text += "\n" + horizon_section(reports_dir, fig_dir, useful, FINAL)
     text += "\n" + backtest_section(reports_dir, FINAL["y_alert"], fig_dir)
     text += (
         "\n## Limitations\n\n"
-        "- Real skill is concentrated in the first 6 hours (+13% Brier vs climatology); beyond "
-        "a day the model is only marginally better than the 28-day hour-of-day climatology.\n"
+        "- Real skill is concentrated in the first hours (see *Useful forecast horizon*); the "
+        "operational forecast is therefore limited to 6 h (any level) and 2 h (red). The "
+        "original 7-day horizon from the project plan was cut after measuring it.\n"
         "- Trend features over-react to bursts: after the spikes of 24.09 and 30.09 the model "
         "expected escalation, but 01-03.10 were calm (dev week 3).\n"
         "- The red-level target has only weeks of history.\n"

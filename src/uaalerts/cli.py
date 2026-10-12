@@ -31,6 +31,11 @@ SPECS: dict[str, Spec] = {
     "gbm_resid": Spec("gbm_resid", lambda t: GBM(base="climatology", drop=SEASON_FEATURES)),
     "gbm_trend_season": Spec("gbm_trend_season", lambda t: GBM()),
     "gbm_resid_season": Spec("gbm_resid_season", lambda t: GBM(base="climatology")),
+    "gbm_resid_short": Spec(
+        "gbm_resid_short",
+        lambda t: GBM(base="climatology", drop=SEASON_FEATURES),
+        max_train_lead=12,
+    ),
     "gbm_resid_dark": Spec(
         "gbm_resid_dark",
         lambda t: GBM(base="climatology", drop=SEASON_FEATURES - {"sun_elev"}),
@@ -172,7 +177,9 @@ def report() -> None:
     panel = pd.read_parquet(settings.processed_dir / "panel.parquet")
     meta = json.loads((settings.interim_dir / "meta.json").read_text())
     regime_break = pd.Timestamp(cfg.regime_break).tz_convert("UTC")
-    path = build_report(settings.data_dir.parent / "reports", panel, regime_break, meta)
+    path = build_report(
+        settings.data_dir.parent / "reports", panel, regime_break, meta, cfg.useful_lead_hours
+    )
     typer.echo(f"-> {path}")
 
 
@@ -207,14 +214,15 @@ def forecast(target: str = typer.Option("all", help="y_alert | y_red | all")) ->
     fc.to_parquet(out, index=False)
     origin = fc["origin"].iloc[0]
     typer.echo(f"origin {origin} UTC, {len(fc):,} rows -> {out}")
+    h = cfg.useful_lead_hours["y_alert"]
     top = (
-        fc[(fc["target"] == "y_alert") & (fc["lead"] <= 24) & ~fc["excluded"]]
+        fc[(fc["target"] == "y_alert") & (fc["lead"] <= h) & ~fc["excluded"]]
         .groupby("region", observed=True)["p_main"]
         .max()
         .sort_values(ascending=False)
         .head(8)
     )
-    typer.echo("highest alert probability in the next 24 h:")
+    typer.echo(f"highest alert probability in the next {h} h (forecast horizon):")
     typer.echo(top.round(2).to_string())
 
 

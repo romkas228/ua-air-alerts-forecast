@@ -49,6 +49,7 @@ class Spec:
     name: str
     factory: Callable[[str], Model]
     window_days: int | None = None
+    max_train_lead: int | None = None  # train only on rows with lead <= this
 
 
 def folds_for(phase: str, cfg: ForecastConfig, data_end: pd.Timestamp) -> list[Fold]:
@@ -131,6 +132,8 @@ def run(
             tr = known
             if spec.window_days is not None:
                 tr = tr[tr["origin"] >= fold.start - pd.Timedelta(days=spec.window_days)]
+            if spec.max_train_lead is not None:
+                tr = tr[tr["lead"] <= spec.max_train_lead]
             log.info("%s %s: fit %s on %d rows", target, fold.name, spec.name, len(tr))
             model = spec.factory(target).fit(tr)
             test[f"p_{spec.name}"] = model.predict(test)
