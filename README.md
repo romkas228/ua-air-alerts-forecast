@@ -46,6 +46,11 @@ Other commands (`uv run uaalerts --help`):
 Run the checks with `uv run pytest`. The same checks run in CI, together with ruff and mypy
 `--strict`.
 
+**Reproducing the report.** The committed [`reports/REPORT.md`](reports/REPORT.md) is the
+reference. Its per-row predictions are large and not committed. To regenerate everything,
+run `scripts/reproduce_evaluation.sh` (~1.5–2 h, mostly the 2-year backtests). Running
+`uaalerts report` alone on a fresh clone gives a shortened report.
+
 ## What is forecast
 
 - **Unit:** one of 24 regions × one hour. Crimea and Luhanska are occupied and kept out of
