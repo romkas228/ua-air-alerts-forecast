@@ -1,0 +1,19 @@
+{
+  "excluded": [
+    "crimea",
+    "donetska",
+    "luhanska",
+    "zaporizka"
+  ],
+  "folds": [
+    "prosp-w1"
+  ],
+  "excluded_per_fold": {
+    "prosp-w1": [
+      "crimea",
+      "donetska",
+      "luhanska",
+      "zaporizka"
+    ]
+  }
+}

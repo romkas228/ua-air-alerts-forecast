@@ -153,8 +153,8 @@ data/ (gitignored)     raw/ interim/ processed/
 | M4 ✅ | `as_of`, features, splits + leakage tests | truncation-invariance tests pass |
 | M5 | Baselines + evaluation harness | metrics table by lead bucket |
 | M6 ✅ | LightGBM + training-window experiments | beats climatology in walk-forward (or an honest report) |
-| M7 ✅ (logger pending) | Report + Streamlit dashboard + siren logger | map + 7-day forecast from "now" |
-| M8 | Text features (Telegram) | ablation: with vs. without text |
+| M7 ✅ | Report + Streamlit dashboard + siren logger | map + 7-day forecast from "now" |
+| M8 ⏸ | Text features (Telegram) | not implemented (deadline); design + verified access in REPORT.md |
 
 ## 11. Model selection log (summary; details in CLAUDE.md)
 

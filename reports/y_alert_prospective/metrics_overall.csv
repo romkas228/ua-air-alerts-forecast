@@ -1,0 +1,4 @@
+model,n,base_rate,brier,log_loss,roc_auc,pr_auc,bss
+climatology,4950.0,0.4622,0.2003,0.5882,0.7761,0.7497,0.0
+persistence,4950.0,0.4622,0.2005,0.589,0.7785,0.7624,-0.0012
+gbm_resid_short,4950.0,0.4622,0.1931,0.5573,0.78,0.765,0.0358

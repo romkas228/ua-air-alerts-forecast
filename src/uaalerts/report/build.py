@@ -271,6 +271,61 @@ def horizon_section(
     return "\n".join(out)
 
 
+def prospective_section(reports_dir: Path, final: dict[str, str]) -> str:
+    out = []
+    for target in ("y_alert", "y_red"):
+        d = reports_dir / f"{target}_prospective"
+        if not (d / "predictions.parquet").exists():
+            continue
+        preds = pd.read_parquet(d / "predictions.parquet")
+        main = final[target]
+        preds["lead_bucket"] = lead_bucket(preds["lead"])
+        models = [c[2:] for c in preds.columns if c.startswith("p_")]
+        t = score_table(preds, models, by=["lead_bucket"])
+        cols = ["lead_bucket", "model", "base_rate", "brier", "bss", "roc_auc"]
+        ci = skill_ci_by_lead(preds, main, bins=[0, 1, 2, 3, 6])
+        out.append(
+            f"### `{target}` (frozen model `{main}`)\n\n"
+            f"Origins {preds['origin'].min():%Y-%m-%d %H:%M} → "
+            f"{preds['origin'].max():%Y-%m-%d %H:%M} UTC ({preds['origin'].nunique()} "
+            f"origins, {preds['origin'].dt.floor('D').nunique()} days).\n\n"
+            f"{_md_table(t[cols])}\n\nShort leads with 95% bootstrap CI (few days → wide):"
+            f"\n\n{_md_table(ci.round(3))}\n"
+        )
+    if not out:
+        return ""
+    return (
+        "## Prospective evaluation (data that did not exist during development)\n\n"
+        "Models frozen at git tag `freeze-v2`; evaluated only on forecast origins after "
+        "2026-10-10 09:00 UTC (`uaalerts evaluate --phase prospective`). This is the honest "
+        "out-of-sample check; it grows as new data arrive.\n\n" + "\n".join(out) + "\n"
+        "**Reading.** For `y_alert` the frozen model keeps its short-range skill on new data "
+        "(1-6 h BSS ≈ +0.12, in line with dev/backtest). For `y_red` persistence helps at 1 h "
+        "but was clearly negative at 2 h in the first days: the red-alert horizon is likely "
+        "1 h. Not changed yet - the sample is a few days; to be revisited with more data.\n"
+    )
+
+
+def text_data_section() -> str:
+    return (
+        "## Text data (optional part of the task): not implemented — design and next steps\n\n"
+        "Skipped because of the deadline; the groundwork is done:\n\n"
+        "- **Source chosen:** the official Air Force channel `@kpszsu` (drone movements per "
+        'oblast with heading, e.g. *"Реактивні БпЛА на заході Чернігівщини, курс на '
+        'Київщину"*, missile/ballistic threats, MiG-31K / strategic aviation take-offs).\n'
+        "- **Access verified:** public web preview `t.me/s/kpszsu` without an account, "
+        "pagination by message id; history reaches at least March 2025 (~85k messages, "
+        "~4.3k pages at 1.5 s/request ≈ 2 h one-off, then incremental).\n"
+        "- **Leakage rules:** only messages with `published_at < origin`; edited messages are "
+        "dropped (their edit time is unknown); same truncation-invariance test as for alerts.\n"
+        "- **Features (dictionary-based):** per oblast mentions in the last 1/3/6 h (all "
+        'grammatical forms: *Сумщина/Сумщині/Сумської*), *"курс на <oblast>"* counts, '
+        "national flags (ballistic threat, missiles, MiG-31K airborne, strategic aviation).\n"
+        "- **Evaluation:** ablation with/without text on dev + backtest; expected gain is at "
+        "1-6 h, exactly the forecast horizon kept after the horizon analysis.\n"
+    )
+
+
 def backtest_plot(by_fold: pd.DataFrame, models: list[str], path: Path) -> None:
     w = by_fold.pivot_table(index="fold", columns="model", values="bss")
     x = pd.to_datetime(w.index.str.replace("bt-", "") + "-01")
@@ -416,8 +471,10 @@ def build_report(
         "roughly quadrupled alert time in Kyiv; the whole test period lies after it.\n\n"
         + "\n".join(sections)
     )
+    text += "\n" + prospective_section(reports_dir, FINAL)
     text += "\n" + horizon_section(reports_dir, fig_dir, useful, FINAL)
     text += "\n" + backtest_section(reports_dir, FINAL["y_alert"], fig_dir)
+    text += "\n" + text_data_section()
     text += (
         "\n## Limitations\n\n"
         "- Real skill is concentrated in the first hours (see *Useful forecast horizon*); the "
